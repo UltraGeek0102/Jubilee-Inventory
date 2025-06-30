@@ -5,6 +5,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 import pandas as pd
 from PIL import Image
 import os
+import json
 
 # ---------- SETUP ----------
 st.set_page_config(page_title="Jubilee Inventory (Cloud)", layout="wide")
@@ -23,7 +24,8 @@ UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 try:
-    creds = ServiceAccountCredentials.from_json_keyfile_name(creds_path, SCOPE)
+    creds_dict = json.loads(st.secrets["GCP_CREDENTIALS"])
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, SCOPE)
     client = gspread.authorize(creds)
     sheet = client.open("jubilee_inventory").sheet1
 except Exception as e:
