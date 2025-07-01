@@ -1,4 +1,4 @@
-# jubilee_streamlit/app.py — Enhanced Cloud Version with All Features
+# jubilee_streamlit/app.py — Full Version with Logo, Favicon, Filters, Upload, Export, Import, Edit & Delete with Image URLs in Sheets
 import streamlit as st
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
@@ -9,28 +9,20 @@ import json
 from datetime import datetime
 import base64
 
-
-
 # ---------- SETUP ----------
 st.set_page_config(page_title="Jubilee Inventory (Enhanced)", layout="wide")
-st.image("logo.png", width=150)
-st.title("🧵 Jubilee Textile Inventory - Cloud Version")
 
-st.markdown(
-    """
-    <link rel="shortcut icon" href="favicon.ico">
-    """,
-    unsafe_allow_html=True
-)
-st.markdown(
-    """
-    <style>
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    </style>
-    """,
-    unsafe_allow_html=True
-)
+# ---------- LOGO + FAVICON ----------
+st.markdown("""
+    <head>
+        <link rel="shortcut icon" href="favicon.ico">
+    </head>
+    <div style='text-align: center;'>
+        <img src='logo.png' width='150'/>
+    </div>
+""", unsafe_allow_html=True)
+
+st.title("🧵 Jubilee Textile Inventory - Cloud Version")
 
 # ---------- GOOGLE SHEETS AUTH via st.secrets ----------
 SCOPE = [
@@ -47,7 +39,7 @@ try:
     creds_dict = json.loads(st.secrets["GCP_CREDENTIALS"])
     creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, SCOPE)
     client = gspread.authorize(creds)
-    spreadsheet = client.open("jubilee-inventory")
+    spreadsheet = client.open("jubilee_inventory")
     sheet = spreadsheet.sheet1
 except gspread.exceptions.SpreadsheetNotFound:
     st.error("❌ Google Sheet 'jubilee_inventory' not found. Please check the name or share it with your service account.")
@@ -89,6 +81,31 @@ def get_csv_download_link(df):
     href = f'<a href="data:file/csv;base64,{b64}" download="inventory_export.csv">📥 Download CSV</a>'
     return href
 
+# ---------- CSV IMPORT ----------
+def show_import_form():
+    st.subheader("📤 Import from Excel or CSV")
+    uploaded = st.file_uploader("Choose file", type=["csv", "xlsx"], key="import")
+    if uploaded:
+        if uploaded.name.endswith(".csv"):
+            df = pd.read_csv(uploaded)
+        else:
+            df = pd.read_excel(uploaded)
+
+        st.write("Preview:")
+        st.dataframe(df)
+
+        if st.button("⬆️ Upload to Google Sheet"):
+            for _, row in df.iterrows():
+                row_list = row.tolist()
+                row_list.append(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+                row_list += [""] * (13 - len(row_list))  # Ensure correct length
+                try:
+                    sheet.append_row(row_list)
+                except Exception as e:
+                    st.error(f"Error inserting row: {e}")
+            st.success("✅ File data uploaded!")
+            st.experimental_rerun()
+
 # ---------- ADD PRODUCT FORM ----------
 def show_add_form():
     st.subheader("➕ Add New Product")
@@ -113,8 +130,9 @@ def show_add_form():
         if submitted:
             total = pcs * rate
             image_path = save_image(image)
+            image_url = f"https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/{image_path}" if image else ""
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            new_row = [company, dno, matching, diamond, pcs, delivery_pcs, assignee, ptype, rate, total, image_path, timestamp]
+            new_row = [company, dno, matching, diamond, pcs, delivery_pcs, assignee, ptype, rate, total, image_url, timestamp]
             try:
                 sheet.append_row(new_row)
                 st.success("✅ Product added successfully!")
@@ -122,13 +140,13 @@ def show_add_form():
             except Exception as e:
                 st.error(f"❌ Failed to write to sheet: {e}")
 
-# ---------- DISPLAY SHEET DATA ----------
+# ---------- DISPLAY, EDIT, DELETE ----------
 def show_inventory():
     st.subheader("📦 Inventory Table (Google Sheets)")
     try:
         data = sheet.get_all_records()
         if not data:
-            st.info("No entries yet. Add a product above.")
+            st.info("No entries yet. Add or import a product.")
             return
 
         df = pd.DataFrame(data)
@@ -137,22 +155,62 @@ def show_inventory():
         df["Pending"] = df["PCS"] - df["Delivery_PCS"]
 
         st.markdown(get_csv_download_link(df), unsafe_allow_html=True)
-
         df = filter_dataframe(df)
 
         for i, row in df.iterrows():
-            with st.expander(f"{i+2}. {row['Company']} - {row['D.NO']}  | Pending: {row['Pending']}"):
-                st.write(f"**Matching:**")
+            row_num = i + 2
+            with st.expander(f"{row_num}. {row['Company']} - {row['D.NO']}  | Pending: {row['Pending']}"):
+                st.write("**Matching:**")
                 st.code(row["Matching"])
                 st.write(f"**PCS:** {row['PCS']}, **Delivered:** {row['Delivery_PCS']}, **Pending:** {row['Pending']}")
                 st.write(f"**Diamond:** {row['Diamond']} | **Type:** {row['Type']} | **Assignee:** {row['Assignee']}")
                 st.write(f"**Rate:** ₹{row['Rate']} | **Total:** ₹{row['Total']} | **Time:** {row['Timestamp']}")
 
-                if row["Image"] and os.path.exists(row["Image"]):
+                if row["Image"]:
                     st.image(row["Image"], width=150)
+
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button("✏️ Edit", key=f"edit_{i}"):
+                        with st.form(f"edit_form_{i}"):
+                            ec1, ec2, ec3 = st.columns(3)
+                            company = ec1.text_input("Company", value=row["Company"])
+                            dno = ec2.text_input("D.NO", value=row["D.NO"])
+                            diamond = ec3.text_input("Diamond", value=row["Diamond"])
+
+                            matching = st.text_area("Matching", value=row["Matching"])
+                            pcs = st.number_input("PCS", min_value=0, value=int(row["PCS"]))
+                            delivery_pcs = st.number_input("Delivery PCS", min_value=0, value=int(row["Delivery_PCS"]))
+
+                            ec4, ec5, ec6 = st.columns(3)
+                            assignee = ec4.text_input("Assignee", value=row["Assignee"])
+                            ptype = ec5.selectbox("Type", ["WITH LACE", "WITHOUT LACE"], index=["WITH LACE", "WITHOUT LACE"].index(row["Type"]))
+                            rate = ec6.number_input("Rate", min_value=0.0, value=float(row["Rate"]))
+
+                            image = st.file_uploader("Replace Image", type=["png", "jpg", "jpeg"])
+
+                            submitted = st.form_submit_button("Update")
+                            if submitted:
+                                total = pcs * rate
+                                image_path = row["Image"]
+                                if image:
+                                    local_path = save_image(image)
+                                    image_path = f"https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/{local_path}"
+                                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                                updated_row = [company, dno, matching, diamond, pcs, delivery_pcs, assignee, ptype, rate, total, image_path, timestamp]
+                                sheet.delete_row(row_num)
+                                sheet.insert_row(updated_row, row_num)
+                                st.success("✅ Updated successfully!")
+                                st.experimental_rerun()
+                with col2:
+                    if st.button("❌ Delete", key=f"delete_{i}"):
+                        sheet.delete_row(row_num)
+                        st.warning("Row deleted")
+                        st.experimental_rerun()
     except Exception as e:
         st.error(f"❌ Failed to load data: {e}")
 
 # ---------- MAIN ----------
+show_import_form()
 show_add_form()
 show_inventory()
