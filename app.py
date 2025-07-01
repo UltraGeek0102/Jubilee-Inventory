@@ -28,7 +28,7 @@ try:
     creds_dict = json.loads(st.secrets["GCP_CREDENTIALS"])
     creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, SCOPE)
     client = gspread.authorize(creds)
-    spreadsheet = client.open("jubilee_inventory")
+    spreadsheet = client.open("jubilee-inventory")
     sheet = spreadsheet.sheet1
 except gspread.exceptions.SpreadsheetNotFound:
     st.error("❌ Google Sheet 'jubilee_inventory' not found. Please check the name or share it with your service account.")
