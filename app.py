@@ -9,8 +9,11 @@ import json
 from datetime import datetime
 import base64
 
+
+
 # ---------- SETUP ----------
 st.set_page_config(page_title="Jubilee Inventory (Enhanced)", layout="wide")
+st.image("logo.png", width=150)
 st.title("🧵 Jubilee Textile Inventory - Cloud Version")
 
 # ---------- GOOGLE SHEETS AUTH via st.secrets ----------
