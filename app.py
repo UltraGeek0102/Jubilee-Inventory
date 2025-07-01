@@ -156,7 +156,7 @@ def show_add_form():
 
         col4, col5, col6 = st.columns(3)
         assignee = col4.text_input("Assignee")
-        ptype = col5.selectbox("Type", ["WITH LACE", "WITHOUT LACE"])
+        ptype = col5.selectbox("Type", ["WITH LACE", "WITHOUT LACE", "With Lace", "Without Lace"])
         rate = col6.number_input("Rate", min_value=0.0, step=0.01, format="%.2f")
 
         st.write(f"🧮 Total: ₹{pcs * rate:.2f}")
