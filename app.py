@@ -1,4 +1,4 @@
-# jubilee_streamlit/app.py — Complete Web App with Excel & CSV Export, Logo, Favicon, CRUD, Image Support
+# jubilee_streamlit/app.py — Full App with Calculator, Google Drive Upload, Dashboard, Mobile Layout, Quick Search, Validation
 import streamlit as st
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
@@ -9,6 +9,7 @@ import json
 from datetime import datetime
 import base64
 import io
+import altair as alt
 
 # ---------- SETUP ----------
 st.set_page_config(page_title="Jubilee Inventory (Enhanced)", layout="wide")
@@ -82,7 +83,7 @@ def get_csv_excel_download_links(df):
 
 # ---------- FILTER ----------
 def filter_dataframe(df):
-    search_text = st.text_input("🔍 Search D.NO, Company or Matching")
+    search_text = st.text_input("🔍 Global Search")
     if search_text:
         df = df[df.apply(lambda row: search_text.lower() in str(row).lower(), axis=1)]
     filter_company = st.multiselect("🏷 Filter by Company", options=df["Company"].unique())
@@ -91,6 +92,22 @@ def filter_dataframe(df):
     if st.checkbox("📦 Show only Pending Deliveries"):
         df = df[df["PCS"] > df["Delivery_PCS"]]
     return df
+
+# ---------- DASHBOARD ----------
+def show_dashboard(df):
+    st.subheader("📊 Inventory Summary")
+    total_pcs = df["PCS"].sum()
+    pending_total = (df["PCS"] - df["Delivery_PCS"]).sum()
+    st.metric("Total PCS", total_pcs)
+    st.metric("Pending Total", pending_total)
+
+    chart_data = df.groupby("Company")["PCS"].sum().reset_index()
+    chart = alt.Chart(chart_data).mark_bar().encode(
+        x=alt.X("Company", sort="-y"),
+        y="PCS",
+        tooltip=["Company", "PCS"]
+    ).properties(height=300)
+    st.altair_chart(chart, use_container_width=True)
 
 # ---------- IMPORT ----------
 def show_import_form():
@@ -124,13 +141,15 @@ def show_add_form():
         diamond = col3.text_input("Diamond")
 
         matching = st.text_area("Matching (format: Red:3, Blue:2)")
-        pcs = st.number_input("PCS", min_value=0)
-        delivery_pcs = st.number_input("Delivery PCS", min_value=0)
+        pcs = st.number_input("PCS", min_value=0, format="%d")
+        delivery_pcs = st.number_input("Delivery PCS", min_value=0, format="%d")
 
         col4, col5, col6 = st.columns(3)
         assignee = col4.text_input("Assignee")
         ptype = col5.selectbox("Type", ["WITH LACE", "WITHOUT LACE"])
-        rate = col6.number_input("Rate", min_value=0.0)
+        rate = col6.number_input("Rate", min_value=0.0, step=0.01, format="%.2f")
+
+        st.write(f"🧮 Total: ₹{pcs * rate:.2f}")
 
         image = st.file_uploader("Upload Image", type=["png", "jpg", "jpeg"])
         submitted = st.form_submit_button("Add Product")
@@ -158,6 +177,7 @@ def show_inventory():
         df["Delivery_PCS"] = pd.to_numeric(df["Delivery_PCS"], errors="coerce").fillna(0).astype(int)
         df["Pending"] = df["PCS"] - df["Delivery_PCS"]
 
+        show_dashboard(df)
         st.markdown(get_csv_excel_download_links(df), unsafe_allow_html=True)
         df = filter_dataframe(df)
 
@@ -213,4 +233,3 @@ def show_inventory():
 show_import_form()
 show_add_form()
 show_inventory()
-
