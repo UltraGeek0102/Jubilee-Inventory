@@ -158,7 +158,11 @@ def show_inventory():
         df = pd.DataFrame(data)
         if "Timestamp" not in df.columns:
             df["Timestamp"] = ""
+
+        df["PCS"] = pd.to_numeric(df["PCS"], errors="coerce").fillna(0).astype(int)
+        df["Delivery_PCS"] = pd.to_numeric(df["Delivery_PCS"], errors="coerce").fillna(0).astype(int)
         df["Pending"] = df["PCS"] - df["Delivery_PCS"]
+
 
         st.markdown(get_csv_download_link(df), unsafe_allow_html=True)
         df = filter_dataframe(df)
