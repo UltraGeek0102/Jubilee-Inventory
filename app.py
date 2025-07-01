@@ -21,11 +21,12 @@ st.markdown("""
             margin-bottom: 0.5rem;
         }
     </style>
-    <link rel="icon" href="https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/favicon.ico" type="image/x-icon">
+    <link rel="icon" href="https://raw.githubusercontent.com/ultrageek0102/Jubilee-Inventory/main/favicon.ico" type="image/x-icon">
     <div class="logo-container">
-        <img src="https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/logo.png" width="150">
+        <img src="https://raw.githubusercontent.com/ultrageek0102/Jubilee-Inventory/main/logo.png" width="150">
     </div>
 """, unsafe_allow_html=True)
+
 
 st.title("🧵 Jubilee Textile Inventory - Cloud Version")
 
