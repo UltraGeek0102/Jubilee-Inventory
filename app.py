@@ -1,4 +1,4 @@
-# jubilee_streamlit/app.py — Full Web App with PWA-like Features, Calculator, Dashboard, Upload, Export, Image, Mobile Optimized
+# jubilee_streamlit/app.py — Full Web App with PCS Matching Total Logic, PWA, Calculator, Dashboard, Image Upload, Mobile
 import streamlit as st
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
@@ -151,7 +151,13 @@ def show_add_form():
         diamond = col3.text_input("Diamond")
 
         matching = st.text_area("Matching (format: Red:3, Blue:2)")
-        pcs = st.number_input("PCS", min_value=0, format="%d")
+        pcs = 0
+        try:
+            if matching:
+                pcs = sum(int(item.split(":")[1]) for item in matching.split(",") if ":" in item)
+        except:
+            pcs = 0
+
         delivery_pcs = st.number_input("Delivery PCS", min_value=0, format="%d")
 
         col4, col5, col6 = st.columns(3)
