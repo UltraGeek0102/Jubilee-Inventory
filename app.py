@@ -1,4 +1,4 @@
-# jubilee_streamlit/app.py — Full Version with Logo, Favicon, Filters, Upload, Export, Import, Edit & Delete with Image URLs in Sheets
+# jubilee_streamlit/app.py — Full Version with Logo, Favicon, Import, Export, Edit, Delete, Image Support
 import streamlit as st
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
@@ -14,11 +14,16 @@ st.set_page_config(page_title="Jubilee Inventory (Enhanced)", layout="wide")
 
 # ---------- LOGO + FAVICON ----------
 st.markdown("""
-    <head>
-        <link rel="shortcut icon" href="favicon.ico">
-    </head>
-    <div style='text-align: center;'>
-        <img src='logo.png' width='150'/>
+    <style>
+        .logo-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 0.5rem;
+        }
+    </style>
+    <link rel="icon" href="https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/favicon.ico" type="image/x-icon">
+    <div class="logo-container">
+        <img src="https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/logo.png" width="150">
     </div>
 """, unsafe_allow_html=True)
 
@@ -39,7 +44,7 @@ try:
     creds_dict = json.loads(st.secrets["GCP_CREDENTIALS"])
     creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, SCOPE)
     client = gspread.authorize(creds)
-    spreadsheet = client.open("jubilee-inventory")
+    spreadsheet = client.open("jubilee_inventory")
     sheet = spreadsheet.sheet1
 except gspread.exceptions.SpreadsheetNotFound:
     st.error("❌ Google Sheet 'jubilee_inventory' not found. Please check the name or share it with your service account.")
@@ -98,7 +103,7 @@ def show_import_form():
             for _, row in df.iterrows():
                 row_list = row.tolist()
                 row_list.append(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-                row_list += [""] * (13 - len(row_list))  # Ensure correct length
+                row_list += [""] * (13 - len(row_list))
                 try:
                     sheet.append_row(row_list)
                 except Exception as e:
