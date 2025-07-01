@@ -1,4 +1,4 @@
-# jubilee_streamlit/app.py — Google Sheets Integrated Version
+# jubilee_streamlit/app.py — Google Sheets Integrated Version with Secrets
 import streamlit as st
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
@@ -11,7 +11,7 @@ import json
 st.set_page_config(page_title="Jubilee Inventory (Cloud)", layout="wide")
 st.title("🧵 Jubilee Textile Inventory - Cloud Version")
 
-# ---------- GOOGLE SHEETS AUTH ----------
+# ---------- GOOGLE SHEETS AUTH via st.secrets ----------
 SCOPE = [
     "https://spreadsheets.google.com/feeds",
     "https://www.googleapis.com/auth/spreadsheets",
@@ -19,7 +19,6 @@ SCOPE = [
     "https://www.googleapis.com/auth/drive"
 ]
 
-creds_path = "creds.json"  # Your service account credentials file
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
@@ -29,7 +28,7 @@ try:
     client = gspread.authorize(creds)
     sheet = client.open("jubilee_inventory").sheet1
 except Exception as e:
-    st.error("Failed to connect to Google Sheets.")
+    st.error(f"❌ Failed to connect to Google Sheets: {e}")
     st.stop()
 
 HEADERS = ["Company", "D.NO", "Matching", "Diamond", "PCS", "Delivery_PCS", "Assignee", "Type", "Rate", "Total", "Image"]
