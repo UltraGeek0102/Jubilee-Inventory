@@ -1,4 +1,4 @@
-# jubilee_streamlit/app.py — Google Sheets Integrated Version with Secrets & Improved Error Handling
+# jubilee_streamlit/app.py — Google Sheets Version with Edit/Delete
 import streamlit as st
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
@@ -26,10 +26,10 @@ try:
     creds_dict = json.loads(st.secrets["GCP_CREDENTIALS"])
     creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, SCOPE)
     client = gspread.authorize(creds)
-    spreadsheet = client.open("jubilee-inventory")
+    spreadsheet = client.open("jubilee_inventory")
     sheet = spreadsheet.sheet1
 except gspread.exceptions.SpreadsheetNotFound:
-    st.error("❌ Google Sheet 'jubilee-inventory' not found. Please check the name or share it with your service account.")
+    st.error("❌ Google Sheet 'jubilee_inventory' not found. Please check the name or share it with your service account.")
     st.stop()
 except Exception as e:
     st.error(f"❌ Unknown error connecting to Google Sheets: {type(e).__name__}: {e}")
@@ -79,7 +79,7 @@ def show_add_form():
             except Exception as e:
                 st.error(f"❌ Failed to write to sheet: {e}")
 
-# ---------- DISPLAY SHEET DATA ----------
+# ---------- DISPLAY + EDIT + DELETE SHEET DATA ----------
 def show_inventory():
     st.subheader("📦 Inventory Table (Google Sheets)")
     try:
@@ -87,14 +87,55 @@ def show_inventory():
         if not data:
             st.info("No entries yet. Add a product above.")
             return
+
         df = pd.DataFrame(data)
         df["Pending"] = df["PCS"] - df["Delivery_PCS"]
-        st.dataframe(df, use_container_width=True)
 
-        with st.expander("📁 Preview Images"):
-            for i, row in df.iterrows():
+        for i, row in df.iterrows():
+            with st.expander(f"{i+2}. {row['Company']} - {row['D.NO']}"):
+                st.write("**Matching:**")
+                st.code(row["Matching"])
+                st.write(f"**Diamond:** {row['Diamond']}, **Rate:** ₹{row['Rate']}, **Total:** ₹{row['Total']}")
+                st.write(f"**PCS:** {row['PCS']} | **Delivered:** {row['Delivery_PCS']} | **Pending:** {row['Pending']}")
+                st.write(f"**Assignee:** {row['Assignee']}, **Type:** {row['Type']}")
                 if row["Image"] and os.path.exists(row["Image"]):
-                    st.image(row["Image"], caption=f"{row['Company']} - {row['D.NO']}", width=150)
+                    st.image(row["Image"], width=120)
+
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button(f"✏️ Edit", key=f"edit_{i}"):
+                        with st.form(f"edit_form_{i}"):
+                            ec1, ec2, ec3 = st.columns(3)
+                            company = ec1.text_input("Company", value=row["Company"])
+                            dno = ec2.text_input("D.NO", value=row["D.NO"])
+                            diamond = ec3.text_input("Diamond", value=row["Diamond"])
+
+                            matching = st.text_area("Matching", value=row["Matching"])
+                            pcs = st.number_input("PCS", min_value=0, value=int(row["PCS"]))
+                            delivery_pcs = st.number_input("Delivery PCS", min_value=0, value=int(row["Delivery_PCS"]))
+
+                            ec4, ec5, ec6 = st.columns(3)
+                            assignee = ec4.text_input("Assignee", value=row["Assignee"])
+                            ptype = ec5.selectbox("Type", ["WITH LACE", "WITHOUT LACE"], index=["WITH LACE", "WITHOUT LACE"].index(row["Type"]))
+                            rate = ec6.number_input("Rate", min_value=0.0, value=float(row["Rate"]))
+
+                            image = st.file_uploader("Replace Image", type=["png", "jpg", "jpeg"])
+
+                            submitted = st.form_submit_button("Update")
+                            if submitted:
+                                total = pcs * rate
+                                image_path = row["Image"]
+                                if image: image_path = save_image(image)
+                                updated_row = [company, dno, matching, diamond, pcs, delivery_pcs, assignee, ptype, rate, total, image_path]
+                                sheet.delete_row(i + 2)
+                                sheet.insert_row(updated_row, i + 2)
+                                st.success("✅ Updated successfully!")
+                                st.experimental_rerun()
+                with col2:
+                    if st.button(f"❌ Delete", key=f"delete_{i}"):
+                        sheet.delete_row(i + 2)  # Offset because headers are row 1
+                        st.warning("Row deleted")
+                        st.experimental_rerun()
     except Exception as e:
         st.error(f"❌ Failed to load data: {e}")
 
