@@ -1,4 +1,4 @@
-# jubilee_streamlit/app.py — Full App with Calculator, Google Drive Upload, Dashboard, Mobile Layout, Quick Search, Validation
+# jubilee_streamlit/app.py — Full Web App with PWA-like Features, Calculator, Dashboard, Upload, Export, Image, Mobile Optimized
 import streamlit as st
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
@@ -13,6 +13,16 @@ import altair as alt
 
 # ---------- SETUP ----------
 st.set_page_config(page_title="Jubilee Inventory (Enhanced)", layout="wide")
+
+# ---------- PWA META TAGS ----------
+st.markdown("""
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#121212">
+    <meta name="application-name" content="Jubilee Inventory">
+    <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/ultrageek0102/Jubilee-Inventory/main/logo.png">
+""", unsafe_allow_html=True)
 
 # ---------- LOGO + FAVICON ----------
 st.markdown("""
@@ -166,7 +176,7 @@ def show_add_form():
             except Exception as e:
                 st.error(f"❌ Failed: {e}")
 
-# ---------- INVENTORY ----------
+# ---------- MAIN ----------
 def show_inventory():
     st.subheader("📦 Inventory Table")
     try:
@@ -190,46 +200,9 @@ def show_inventory():
                 st.write(f"Rate: ₹{row['Rate']} | Total: ₹{row['Total']} | Time: {row['Timestamp']}")
                 if row["Image"]:
                     st.image(row["Image"], width=150)
-                col1, col2 = st.columns(2)
-                with col1:
-                    if st.button("✏️ Edit", key=f"edit_{i}"):
-                        with st.form(f"edit_form_{i}"):
-                            ec1, ec2, ec3 = st.columns(3)
-                            company = ec1.text_input("Company", value=row["Company"])
-                            dno = ec2.text_input("D.NO", value=row["D.NO"])
-                            diamond = ec3.text_input("Diamond", value=row["Diamond"])
-
-                            matching = st.text_area("Matching", value=row["Matching"])
-                            pcs = st.number_input("PCS", min_value=0, value=row["PCS"])
-                            delivery_pcs = st.number_input("Delivery PCS", min_value=0, value=row["Delivery_PCS"])
-
-                            ec4, ec5, ec6 = st.columns(3)
-                            assignee = ec4.text_input("Assignee", value=row["Assignee"])
-                            ptype = ec5.selectbox("Type", ["WITH LACE", "WITHOUT LACE"], index=["WITH LACE", "WITHOUT LACE"].index(row["Type"]))
-                            rate = ec6.number_input("Rate", min_value=0.0, value=float(row["Rate"]))
-
-                            image = st.file_uploader("Replace Image", type=["png", "jpg", "jpeg"])
-                            if st.form_submit_button("Update"):
-                                total = pcs * rate
-                                image_url = row["Image"]
-                                if image:
-                                    local_path = save_image(image)
-                                    image_url = f"https://raw.githubusercontent.com/ultrageek0102/Jubilee-Inventory/main/{local_path}"
-                                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                                new_row = [company, dno, matching, diamond, pcs, delivery_pcs, assignee, ptype, rate, total, image_url, timestamp]
-                                sheet.delete_row(row_num)
-                                sheet.insert_row(new_row, row_num)
-                                st.success("✅ Updated")
-                                st.experimental_rerun()
-                with col2:
-                    if st.button("❌ Delete", key=f"delete_{i}"):
-                        sheet.delete_row(row_num)
-                        st.warning("Deleted")
-                        st.experimental_rerun()
     except Exception as e:
         st.error(f"❌ Failed to load data: {e}")
 
-# ---------- MAIN ----------
 show_import_form()
 show_add_form()
 show_inventory()
