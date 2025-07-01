@@ -16,6 +16,22 @@ st.set_page_config(page_title="Jubilee Inventory (Enhanced)", layout="wide")
 st.image("logo.png", width=150)
 st.title("🧵 Jubilee Textile Inventory - Cloud Version")
 
+st.markdown(
+    """
+    <link rel="shortcut icon" href="favicon.ico">
+    """,
+    unsafe_allow_html=True
+)
+st.markdown(
+    """
+    <style>
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
 # ---------- GOOGLE SHEETS AUTH via st.secrets ----------
 SCOPE = [
     "https://spreadsheets.google.com/feeds",
