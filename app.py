@@ -1,4 +1,4 @@
-# jubilee_streamlit/app.py — Google Sheets Integrated Version with Secrets
+# jubilee_streamlit/app.py — Google Sheets Integrated Version with Secrets & Improved Error Handling
 import streamlit as st
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
@@ -26,9 +26,13 @@ try:
     creds_dict = json.loads(st.secrets["GCP_CREDENTIALS"])
     creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, SCOPE)
     client = gspread.authorize(creds)
-    sheet = client.open("jubilee_inventory").sheet1
+    spreadsheet = client.open("jubilee_inventory")
+    sheet = spreadsheet.sheet1
+except gspread.exceptions.SpreadsheetNotFound:
+    st.error("❌ Google Sheet 'jubilee_inventory' not found. Please check the name or share it with your service account.")
+    st.stop()
 except Exception as e:
-    st.error(f"❌ Failed to connect to Google Sheets: {e}")
+    st.error(f"❌ Unknown error connecting to Google Sheets: {type(e).__name__}: {e}")
     st.stop()
 
 HEADERS = ["Company", "D.NO", "Matching", "Diamond", "PCS", "Delivery_PCS", "Assignee", "Type", "Rate", "Total", "Image"]
