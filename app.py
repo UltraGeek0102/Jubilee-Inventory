@@ -178,7 +178,7 @@ def show_inventory():
         row = df.loc[i]
         row_num = i + 2
         with st.expander(f"{row['Company']} - {row['D.NO']} | Pending: {row['Pending']}"):
-            st.markdown(f'<a href="{row['Image'] or FALLBACK_IMAGE}" target="_blank"><img src="{row['Image'] or FALLBACK_IMAGE}" width="200"></a>', unsafe_allow_html=True)
+            st.markdown(f'<a href="{row["Image"] or FALLBACK_IMAGE}" target="_blank"><img src="{row["Image"] or FALLBACK_IMAGE}" width="200"></a>', unsafe_allow_html=True)
             st.write(f"Diamond: {row['Diamond']} | Type: {row['Type']} | Assignee: {row['Assignee']}")
             st.write(f"PCS: {row['PCS']} | Delivered: {row['Delivery_PCS']} | Rate: ₹{row['Rate']} | Total: ₹{row['Total']}")
             st.write(f"Matching: {row['Matching']}")
