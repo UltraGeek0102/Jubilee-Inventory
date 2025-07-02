@@ -46,7 +46,6 @@ st.markdown("""
     </div>
     <link rel="icon" href="https://raw.githubusercontent.com/ultrageek0102/Jubilee-Inventory/main/favicon.ico" type="image/x-icon">
 """, unsafe_allow_html=True)
-""", unsafe_allow_html=True)
 
 SCOPE = [
     "https://spreadsheets.google.com/feeds",
