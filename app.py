@@ -144,6 +144,7 @@ def show_add_form():
 def show_inventory():
     st.subheader("📦 Inventory")
     df = pd.DataFrame(sheet.get_all_records())
+df["SheetRowNum"] = df.index + 2
     df["PCS"] = pd.to_numeric(df["PCS"], errors="coerce").fillna(0).astype(int)
     df["Delivery_PCS"] = pd.to_numeric(df["Delivery_PCS"], errors="coerce").fillna(0).astype(int)
     df["Pending"] = df["PCS"] - df["Delivery_PCS"]
@@ -175,8 +176,8 @@ def show_inventory():
     sliced_df = df.iloc[start:end]
 
     for i in sliced_df.index:
-        row = df.loc[i]
-        row_num = i + 2
+        row = sliced_df.loc[i]
+        row_num = int(row["SheetRowNum"])
         with st.expander(f"{row['Company']} - {row['D.NO']} | Pending: {row['Pending']}"):
             st.markdown(f'<a href="{row["Image"] or FALLBACK_IMAGE}" target="_blank"><img src="{row["Image"] or FALLBACK_IMAGE}" width="200"></a>', unsafe_allow_html=True)
             st.write(f"Diamond: {row['Diamond']} | Type: {row['Type']} | Assignee: {row['Assignee']}")
