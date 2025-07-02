@@ -1,7 +1,9 @@
-# jubilee_streamlit/app.py — Full Web App with PCS Matching Total Logic, PWA, Calculator, Dashboard, Image Upload, Mobile
+# jubilee_streamlit/app.py — Now Uploads Images to Google Drive with Public Preview
 import streamlit as st
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaIoBaseUpload
 import pandas as pd
 from PIL import Image
 import os
@@ -11,37 +13,9 @@ import base64
 import io
 import altair as alt
 
-# ---------- SETUP ----------
 st.set_page_config(page_title="Jubilee Inventory (Enhanced)", layout="wide")
 
-# ---------- PWA META TAGS ----------
-st.markdown("""
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#121212">
-    <meta name="application-name" content="Jubilee Inventory">
-    <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/ultrageek0102/Jubilee-Inventory/main/logo.png">
-""", unsafe_allow_html=True)
-
-# ---------- LOGO + FAVICON ----------
-st.markdown("""
-    <style>
-        .logo-container {
-            display: flex;
-            justify-content: center;
-            margin-bottom: 0.5rem;
-        }
-    </style>
-    <link rel="icon" href="https://raw.githubusercontent.com/ultrageek0102/Jubilee-Inventory/main/favicon.ico" type="image/x-icon">
-    <div class="logo-container">
-        <img src="https://raw.githubusercontent.com/ultrageek0102/Jubilee-Inventory/main/logo.png" width="150">
-    </div>
-""", unsafe_allow_html=True)
-
-st.title("🧵 Jubilee Textile Inventory - Cloud Version")
-
-# ---------- GOOGLE SHEETS AUTH via st.secrets ----------
+# Google Drive API Setup
 SCOPE = [
     "https://spreadsheets.google.com/feeds",
     "https://www.googleapis.com/auth/spreadsheets",
@@ -58,24 +32,46 @@ try:
     client = gspread.authorize(creds)
     spreadsheet = client.open("jubilee-inventory")
     sheet = spreadsheet.sheet1
-except gspread.exceptions.SpreadsheetNotFound:
-    st.error("❌ Google Sheet 'jubilee_inventory' not found. Please check the name or share it with your service account.")
-    st.stop()
+    drive_service = build("drive", "v3", credentials=creds)
 except Exception as e:
-    st.error(f"❌ Unknown error connecting to Google Sheets: {type(e).__name__}: {e}")
+    st.error(f"❌ Google API error: {e}")
     st.stop()
 
-# ---------- IMAGE UPLOAD ----------
-def save_image(uploaded_file):
+# Upload to Google Drive Folder
+DRIVE_FOLDER_ID = st.secrets.get("DRIVE_FOLDER_ID")  # Add this to your secrets
+
+def upload_to_drive(uploaded_file):
     if uploaded_file is None:
         return ""
-    file_path = os.path.join(UPLOAD_DIR, uploaded_file.name)
-    image = Image.open(uploaded_file)
-    image.thumbnail((800, 800))
-    image.save(file_path)
-    return file_path
+    file_stream = io.BytesIO(uploaded_file.getvalue())
+    mime_type = uploaded_file.type or "image/jpeg"
 
-# ---------- EXPORT ----------
+    file_metadata = {
+        'name': uploaded_file.name,
+        'parents': [DRIVE_FOLDER_ID]
+    }
+    media = MediaIoBaseUpload(file_stream, mimetype=mime_type)
+
+    try:
+        uploaded = drive_service.files().create(
+            body=file_metadata,
+            media_body=media,
+            fields="id"
+        ).execute()
+        file_id = uploaded.get("id")
+
+        # Make public
+        drive_service.permissions().create(
+            fileId=file_id,
+            body={"role": "reader", "type": "anyone"},
+            fields="id"
+        ).execute()
+
+        return f"https://drive.google.com/uc?id={file_id}"
+    except Exception as e:
+        st.warning(f"⚠️ Failed to upload image to Drive: {e}")
+        return ""
+
 def get_csv_excel_download_links(df):
     csv = df.to_csv(index=False).encode('utf-8')
     excel_buffer = io.BytesIO()
@@ -85,63 +81,10 @@ def get_csv_excel_download_links(df):
 
     b64_csv = base64.b64encode(csv).decode()
     b64_excel = base64.b64encode(excel_data).decode()
-
     csv_link = f'<a href="data:file/csv;base64,{b64_csv}" download="inventory_export.csv">📥 Download CSV</a>'
     excel_link = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64_excel}" download="inventory_export.xlsx">📥 Download Excel</a>'
-
     return csv_link + " | " + excel_link
 
-# ---------- FILTER ----------
-def filter_dataframe(df):
-    search_text = st.text_input("🔍 Global Search")
-    if search_text:
-        df = df[df.apply(lambda row: search_text.lower() in str(row).lower(), axis=1)]
-    filter_company = st.multiselect("🏷 Filter by Company", options=df["Company"].unique())
-    if filter_company:
-        df = df[df["Company"].isin(filter_company)]
-    if st.checkbox("📦 Show only Pending Deliveries"):
-        df = df[df["PCS"] > df["Delivery_PCS"]]
-    return df
-
-# ---------- DASHBOARD ----------
-def show_dashboard(df):
-    st.subheader("📊 Inventory Summary")
-    total_pcs = df["PCS"].sum()
-    pending_total = (df["PCS"] - df["Delivery_PCS"]).sum()
-    st.metric("Total PCS", total_pcs)
-    st.metric("Pending Total", pending_total)
-
-    chart_data = df.groupby("Company")["PCS"].sum().reset_index()
-    chart = alt.Chart(chart_data).mark_bar().encode(
-        x=alt.X("Company", sort="-y"),
-        y="PCS",
-        tooltip=["Company", "PCS"]
-    ).properties(height=300)
-    st.altair_chart(chart, use_container_width=True)
-
-# ---------- IMPORT ----------
-def show_import_form():
-    st.subheader("📤 Import from Excel or CSV")
-    uploaded = st.file_uploader("Choose file", type=["csv", "xlsx"], key="import")
-    if uploaded:
-        if uploaded.name.endswith(".csv"):
-            df = pd.read_csv(uploaded)
-        else:
-            df = pd.read_excel(uploaded)
-        st.dataframe(df)
-        if st.button("⬆️ Upload to Google Sheet"):
-            for _, row in df.iterrows():
-                row_list = row.tolist()
-                row_list.append(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-                row_list += [""] * (13 - len(row_list))
-                try:
-                    sheet.append_row(row_list)
-                except Exception as e:
-                    st.error(f"Error inserting row: {e}")
-            st.success("✅ File data uploaded!")
-            st.experimental_rerun()
-
-# ---------- ADD ----------
 def show_add_form():
     st.subheader("➕ Add New Product")
     with st.form("add_form"):
@@ -159,56 +102,81 @@ def show_add_form():
             pcs = 0
 
         delivery_pcs = st.number_input("Delivery PCS", min_value=0, format="%d")
-
         col4, col5, col6 = st.columns(3)
         assignee = col4.text_input("Assignee")
         ptype = col5.selectbox("Type", ["WITH LACE", "WITHOUT LACE", "With Lace", "Without Lace"])
         rate = col6.number_input("Rate", min_value=0.0, step=0.01, format="%.2f")
-
         st.write(f"🧮 Total: ₹{pcs * rate:.2f}")
 
         image = st.file_uploader("Upload Image", type=["png", "jpg", "jpeg"])
         submitted = st.form_submit_button("Add Product")
         if submitted:
             total = pcs * rate
-            image_path = save_image(image)
-            image_url = f"https://raw.githubusercontent.com/ultrageek0102/Jubilee-Inventory/main/{image_path}" if image else ""
+            image_url = upload_to_drive(image)
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             row = [company, dno, matching, diamond, pcs, delivery_pcs, assignee, ptype, rate, total, image_url, timestamp]
             try:
                 sheet.append_row(row)
-                st.success("✅ Added!")
+                st.success("✅ Product added successfully!")
                 st.experimental_rerun()
             except Exception as e:
-                st.error(f"❌ Failed: {e}")
+                st.error(f"❌ Error: {e}")
 
-# ---------- MAIN ----------
 def show_inventory():
     st.subheader("📦 Inventory Table")
     try:
         df = pd.DataFrame(sheet.get_all_records())
-        if "Timestamp" not in df.columns:
-            df["Timestamp"] = ""
         df["PCS"] = pd.to_numeric(df["PCS"], errors="coerce").fillna(0).astype(int)
         df["Delivery_PCS"] = pd.to_numeric(df["Delivery_PCS"], errors="coerce").fillna(0).astype(int)
         df["Pending"] = df["PCS"] - df["Delivery_PCS"]
 
-        show_dashboard(df)
         st.markdown(get_csv_excel_download_links(df), unsafe_allow_html=True)
-        df = filter_dataframe(df)
 
         for i, row in df.iterrows():
             row_num = i + 2
-            with st.expander(f"{row_num}. {row['Company']} - {row['D.NO']}  | Pending: {row['Pending']}"):
-                st.write(f"**Matching:**\n{row['Matching']}")
-                st.write(f"PCS: {row['PCS']} | Delivered: {row['Delivery_PCS']} | Pending: {row['Pending']}")
-                st.write(f"Diamond: {row['Diamond']} | Type: {row['Type']} | Assignee: {row['Assignee']}")
-                st.write(f"Rate: ₹{row['Rate']} | Total: ₹{row['Total']} | Time: {row['Timestamp']}")
+            with st.expander(f"{row['Company']} - {row['D.NO']} | Pending: {row['Pending']}"):
+                st.write(f"**Matching:** {row['Matching']}")
+                st.write(f"PCS: {row['PCS']} | Delivered: {row['Delivery_PCS']} | Rate: ₹{row['Rate']} | Total: ₹{row['Total']}")
                 if row["Image"]:
-                    st.image(row["Image"], width=150)
+                    st.image(row["Image"], width=200)
+                with st.form(f"edit_form_{i}"):
+                    ec1, ec2, ec3 = st.columns(3)
+                    company = ec1.text_input("Company", value=row["Company"])
+                    dno = ec2.text_input("D.NO", value=row["D.NO"])
+                    diamond = ec3.text_input("Diamond", value=row["Diamond"])
+
+                    matching = st.text_area("Matching", value=row["Matching"])
+                    try:
+                        pcs = sum(int(item.split(":")[1]) for item in matching.split(",") if ":" in item)
+                    except:
+                        pcs = 0
+                    delivery_pcs = st.number_input("Delivery PCS", min_value=0, value=row["Delivery_PCS"], format="%d")
+
+                    ec4, ec5, ec6 = st.columns(3)
+                    assignee = ec4.text_input("Assignee", value=row["Assignee"])
+                    ptype = ec5.selectbox("Type", ["WITH LACE", "WITHOUT LACE", "With Lace", "Without Lace"], index=0)
+                    rate = ec6.number_input("Rate", min_value=0.0, value=float(row["Rate"]), step=0.01)
+                    st.write(f"🧮 Total: ₹{pcs * rate:.2f}")
+
+                    image = st.file_uploader("Replace Image", type=["png", "jpg", "jpeg"])
+                    colA, colB = st.columns(2)
+                    if colA.form_submit_button("✏️ Update"):
+                        image_url = row["Image"]
+                        if image:
+                            image_url = upload_to_drive(image)
+                        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        new_row = [company, dno, matching, diamond, pcs, delivery_pcs, assignee, ptype, rate, pcs * rate, image_url, timestamp]
+                        sheet.delete_row(row_num)
+                        sheet.insert_row(new_row, row_num)
+                        st.success("✅ Updated")
+                        st.experimental_rerun()
+                    if colB.form_submit_button("❌ Delete"):
+                        sheet.delete_row(row_num)
+                        st.warning("🚮 Deleted")
+                        st.experimental_rerun()
     except Exception as e:
         st.error(f"❌ Failed to load data: {e}")
 
-show_import_form()
+# Run App
 show_add_form()
 show_inventory()
