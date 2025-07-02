@@ -14,7 +14,26 @@ import io
 import altair as alt
 import uuid
 
-st.set_page_config(page_title="Jubilee Inventory", layout="wide")
+st.set_page_config(
+    page_title="Jubilee Inventory",
+    page_icon="https://raw.githubusercontent.com/ultrageek0102/Jubilee-Inventory/main/favicon.ico",
+    layout="wide"
+)
+
+# --- Logo + Favicon ---
+st.markdown("""
+    <style>
+        .logo-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 1rem;
+        }
+    </style>
+    <div class="logo-container">
+        <img src="https://raw.githubusercontent.com/ultrageek0102/Jubilee-Inventory/main/logo.png" width="150">
+    </div>
+    <link rel="icon" href="https://raw.githubusercontent.com/ultrageek0102/Jubilee-Inventory/main/favicon.ico" type="image/x-icon">
+""", unsafe_allow_html=True)
 
 SCOPE = [
     "https://spreadsheets.google.com/feeds",
@@ -143,7 +162,8 @@ def show_inventory():
     end = start + ROWS_PER_PAGE
     sliced_df = df.iloc[start:end]
 
-    for i, row in sliced_df.iterrows():
+    for i in sliced_df.index:
+        row = df.loc[i]
         row_num = i + 2
         with st.expander(f"{row['Company']} - {row['D.NO']} | Pending: {row['Pending']}"):
             st.markdown(f'<a href="{row['Image'] or FALLBACK_IMAGE}" target="_blank"><img src="{row['Image'] or FALLBACK_IMAGE}" width="200"></a>', unsafe_allow_html=True)
