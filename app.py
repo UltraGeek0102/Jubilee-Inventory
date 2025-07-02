@@ -30,8 +30,9 @@ st.markdown("""
         }
     </style>
     <div class="logo-container">
-        <img src="https://raw.githubusercontent.com/ultrageek0102/Jubilee-Inventory/main/logo.png" width="150">
-    </div>
+    <img src="https://raw.githubusercontent.com/ultrageek0102/Jubilee-Inventory/main/logo.png" width="80" style="margin-right: 1rem;">
+    <h1 style="margin: 0; font-size: 2rem; line-height: 80px; font-weight: 600; color: white;">JUBILEE TEXTILE PROCESSORS</h1>
+</div>
     <link rel="icon" href="https://raw.githubusercontent.com/ultrageek0102/Jubilee-Inventory/main/favicon.ico" type="image/x-icon">
 """, unsafe_allow_html=True)
 
@@ -203,4 +204,3 @@ def show_inventory():
 
 show_add_form()
 show_inventory()
-
