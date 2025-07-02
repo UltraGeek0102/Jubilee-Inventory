@@ -145,7 +145,6 @@ def show_inventory():
     st.subheader("📦 Inventory")
     df = pd.DataFrame(sheet.get_all_records())
     df["SheetRowNum"] = df.index + 2
-    df = pd.DataFrame(sheet.get_all_records())
     df["PCS"] = pd.to_numeric(df["PCS"], errors="coerce").fillna(0).astype(int)
     df["Delivery_PCS"] = pd.to_numeric(df["Delivery_PCS"], errors="coerce").fillna(0).astype(int)
     df["Pending"] = df["PCS"] - df["Delivery_PCS"]
@@ -217,3 +216,4 @@ def show_inventory():
 
 show_add_form()
 show_inventory()
+
