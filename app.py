@@ -25,15 +25,27 @@ st.markdown("""
     <style>
         .logo-container {
             display: flex;
+            align-items: center;
             justify-content: center;
+            gap: 1rem;
+            margin-top: 1rem;
             margin-bottom: 1rem;
+        }
+        .logo-container img {
+            height: 60px;
+        }
+        .logo-container h1 {
+            font-size: 2rem;
+            font-weight: 600;
+            color: white;
         }
     </style>
     <div class="logo-container">
-    <img src="https://raw.githubusercontent.com/ultrageek0102/Jubilee-Inventory/main/logo.png" width="80" style="margin-right: 1rem;">
-    <h1 style="margin: 0; font-size: 2rem; line-height: 80px; font-weight: 600; color: white;">JUBILEE TEXTILE PROCESSORS</h1>
-</div>
+        <img src="https://raw.githubusercontent.com/ultrageek0102/Jubilee-Inventory/main/logo.png" alt="logo">
+        <h1>JUBILEE TEXTILE PROCESSORS</h1>
+    </div>
     <link rel="icon" href="https://raw.githubusercontent.com/ultrageek0102/Jubilee-Inventory/main/favicon.ico" type="image/x-icon">
+""", unsafe_allow_html=True)
 """, unsafe_allow_html=True)
 
 SCOPE = [
