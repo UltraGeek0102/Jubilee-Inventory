@@ -245,9 +245,7 @@ def download_print_view(df):
     b64 = base64.b64encode(html_content.encode()).decode()
     href = f'<a href="data:text/html;base64,{b64}" download="jubilee_inventory_report.html">📄 Download Printable HTML</a>'
     st.markdown(href, unsafe_allow_html=True)
-
-# Add this call after filtering and slicing the DataFrame inside show_inventory()
-download_print_view(df)
+    download_print_view(df)
 
 # --- Main ---
 show_add_form()
