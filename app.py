@@ -261,7 +261,8 @@ def show_inventory():
             if st.button(f"➕ Add Color", key=f"add_edit_row_{i}"):
             if f"edit_rows_{i}" not in st.session_state:
                 st.session_state[f"edit_rows_{i}"] = []
-            st.session_state[f"edit_rows_{i}"].append(f"Color{len(st.session_state[f"edit_rows_{i}"])+1}")
+            st.session_state[f"edit_rows_{i}"].append(f"Color{len(st.session_state[f'edit_rows_{i}'])+1}")
+            st.rerun()
 
         with st.form(f"edit_{i}"):
                 col1, col2, col3 = st.columns(3)
@@ -326,4 +327,3 @@ def show_inventory():
 
 show_add_form()
 show_inventory()
-
