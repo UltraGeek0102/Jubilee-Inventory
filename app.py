@@ -137,7 +137,7 @@ def show_add_form():
             try:
                 sheet.append_row(row)
                 st.success("✅ Product added!")
-                st.experimental_rerun()
+                st.rerun()
             except Exception as e:
                 st.error(f"Failed to add: {e}")
 
@@ -210,7 +210,8 @@ def show_inventory():
                         # Assuming your columns are A to L, adjust if necessary
                         sheet.update(f'A{row_num}:L{row_num}', [new_row])
                         st.success("✅ Updated")
-                        st.experimental_rerun()
+                        st.rerun()
+
                     except Exception as e:
                         st.error(f"Failed to update: {e}")
 
@@ -218,10 +219,9 @@ def show_inventory():
                     try:
                         sheet.delete_row(row_num)
                         st.warning("❌ Deleted")
-                        st.experimental_rerun()
+                        st.rerun()
                     except Exception as e:
                         st.error(f"Failed to delete: {e}")
 
 show_add_form()
 show_inventory()
-
