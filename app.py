@@ -119,8 +119,7 @@ def show_add_form():
 
     
 
-    +1}")
-
+ 
     with st.form("add_form"):
         col1, col2, col3 = st.columns(3)
         company = col1.text_input("Company")
