@@ -17,7 +17,7 @@ import uuid
 import numpy as np
 
 # --- Configuration ---
-SERVICE_ACCOUNT_FILE = "credentials/streamlit-sheet-access.json"
+SERVICE_ACCOUNT_FILE = "credentials/jubilee-inventory-c8a7a69c3991.json"
 SCOPES = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
 SPREADSHEET_NAME = "Jubilee_Inventory"
 LOG_SHEET_NAME = "Logs"
