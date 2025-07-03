@@ -292,13 +292,10 @@ def show_inventory():
                 """, unsafe_allow_html=True)
                 
                     if st.button(f"➕ Add New Matching Row", key=f"add_edit_row_{i}"):
-                        st.session_state[f"edit_rows_{i}"].append(f"Color{len(st.session_state[f"edit_rows_{i}"])+1}")
-                        with colm1:
-                            color = st.text_input(f"Color ({name})", value=name, key=f"edit_color_{i}_{name}")
-                        with colm2:
-                            pcs_val = st.number_input(f"PCS", value=int(qty), min_value=0, step=1, key=f"edit_qty_{i}_{name}")
-                        if color:
-                            matching_dict[color] = pcs_val
+    if f"edit_rows_{i}" not in st.session_state:
+        st.session_state[f"edit_rows_{i}"] = []
+    st.session_state[f"edit_rows_{i}"].append(f"Color{len(st.session_state[f'edit_rows_{i}'])+1}")
+    st.rerun()
                 matching = ", ".join(f"{k}:{v}" for k, v in matching_dict.items() if v > 0)
                 pcs = sum(matching_dict.values())
                 st.write(f"🎯 Total PCS: {pcs}")
