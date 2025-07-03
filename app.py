@@ -118,11 +118,18 @@ def show_add_form():
         company = col1.text_input("Company")
         dno = col2.text_input("D.NO")
         diamond = col3.text_input("Diamond")
-        matching = st.text_area("Matching (Red:3, Blue:2)")
-        try:
-            pcs = sum(int(i.split(":")[1]) for i in matching.split(",") if ":" in i)
-        except:
-            pcs = 0
+        matching_dict = {}
+        with st.expander("Matching Table"):
+            colm1, colm2 = st.columns([2, 1])
+            for color in ["Red", "Blue", "Green", "Yellow", "Black"]:
+                with colm1:
+                    name = st.text_input(f"Color ({color})", value=color, key=f"color_{color}")
+                with colm2:
+                    qty = st.number_input(f"PCS", min_value=0, step=1, key=f"qty_{color}")
+                if name:
+                    matching_dict[name] = qty
+        matching = ", ".join(f"{k}:{v}" for k, v in matching_dict.items() if v > 0)
+        pcs = sum(matching_dict.values())
         delivery = st.number_input("Delivery PCS", min_value=0, format="%d")
         a1, a2, a3 = st.columns(3)
         assignee = a1.text_input("Assignee")
@@ -148,8 +155,32 @@ def show_add_form():
             except Exception as e:
                 st.error(f"Failed to add: {e}")
 
+def export_matching_table(df):
+    matching_data = []
+    for _, row in df.iterrows():
+        for pair in row["Matching"].split(","):
+            if ":" in pair:
+                color, qty = pair.strip().split(":")
+                matching_data.append({
+                    "Company": row["Company"],
+                    "D.NO": row["D.NO"],
+                    "Color": color.strip(),
+                    "PCS": int(qty.strip())
+                })
+    export_df = pd.DataFrame(matching_data)
+    excel_buf = io.BytesIO()
+    with pd.ExcelWriter(excel_buf, engine='xlsxwriter') as writer:
+        export_df.to_excel(writer, index=False, sheet_name="Matching")
+    st.download_button(
+        label="📤 Export Matching Table (All Rows)",
+        data=excel_buf.getvalue(),
+        file_name="matching_export.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
 def show_inventory():
     st.subheader("📦 Inventory")
+    export_matching_table(df)
     df = pd.DataFrame(sheet.get_all_records())
     df["SheetRowNum"] = df.index + 2
     df["PCS"] = pd.to_numeric(df["PCS"], errors="coerce").fillna(0).astype(int)
@@ -186,6 +217,20 @@ def show_inventory():
         row = sliced_df.loc[i]
         row_num = int(row["SheetRowNum"])
         with st.expander(f"{row['Company']} - {row['D.NO']} | Pending: {row['Pending']}"):
+            if st.button(f"⬇️ Export Matching Only — {row['Company']} {row['D.NO']}", key=f"export_match_{i}"):
+                match_pairs = [s.strip() for s in row["Matching"].split(",") if ":" in s]
+                match_data = [{"Color": k.split(":")[0].strip(), "PCS": int(k.split(":")[1])} for k in match_pairs]
+                match_df = pd.DataFrame(match_data)
+                buf = io.BytesIO()
+                with pd.ExcelWriter(buf, engine='xlsxwriter') as writer:
+                    match_df.to_excel(writer, index=False, sheet_name="Matching")
+                st.download_button(
+                    label="📤 Download This Matching Table",
+                    data=buf.getvalue(),
+                    file_name=f"matching_{row['Company']}_{row['D.NO']}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key=f"match_dl_{i}"
+                )
             st.markdown(f'<a href="{row["Image"] or FALLBACK_IMAGE}" target="_blank"><img src="{row["Image"] or FALLBACK_IMAGE}" width="200"></a>', unsafe_allow_html=True)
             st.write(f"Diamond: {row['Diamond']} | Type: {row['Type']} | Assignee: {row['Assignee']}")
             st.write(f"PCS: {row['PCS']} | Delivered: {row['Delivery_PCS']} | Rate: ₹{row['Rate']} | Total: ₹{row['Total']}")
@@ -195,8 +240,20 @@ def show_inventory():
                 company = col1.text_input("Company", value=row["Company"])
                 dno = col2.text_input("D.NO", value=row["D.NO"])
                 diamond = col3.text_input("Diamond", value=row["Diamond"])
-                matching = st.text_area("Matching", value=row["Matching"])
-                try:
+                matching_dict = {}
+                with st.expander("Matching Table", expanded=False):
+                    colm1, colm2 = st.columns([2, 1])
+                    preset_pairs = [s.strip() for s in row["Matching"].split(",") if ":" in s]
+                    for item in preset_pairs:
+                        name, qty = item.split(":")
+                        with colm1:
+                            color = st.text_input(f"Color ({name})", value=name, key=f"edit_color_{i}_{name}")
+                        with colm2:
+                            pcs_val = st.number_input(f"PCS", value=int(qty), min_value=0, step=1, key=f"edit_qty_{i}_{name}")
+                        if color:
+                            matching_dict[color] = pcs_val
+                matching = ", ".join(f"{k}:{v}" for k, v in matching_dict.items() if v > 0)
+                pcs = sum(matching_dict.values())
                     pcs = sum(int(i.split(":")[1]) for i in matching.split(",") if ":" in i)
                 except:
                     pcs = 0
@@ -215,7 +272,7 @@ def show_inventory():
                     sheet.delete_rows(row_num)
                     sheet.insert_row(new_row, row_num)
                     st.success("✅ Updated")
-                    st.experimental_rerun()
+                    st.rerun()
                 if c2.form_submit_button("Delete"):
                     sheet.delete_rows(row_num)
                     st.warning("❌ Deleted")
