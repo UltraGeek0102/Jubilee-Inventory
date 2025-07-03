@@ -132,6 +132,13 @@ def show_add_form():
         image = st.file_uploader("Upload Image", type=["png", "jpg", "jpeg"])
         submit = st.form_submit_button("Add")
         if submit:
+            existing = sheet.get_all_records()
+            conflict = next((r for r in existing if r["Company"] == company and r["D.NO"] == dno), None)
+            if conflict:
+                msg = f"🚫 Duplicate entry: <b>{company} - {dno}</b> already exists with rate ₹{conflict['Rate']} and PCS {conflict['PCS']}."
+                st.markdown(msg, unsafe_allow_html=True)
+                return
+
             img_url = upload_to_drive(image)
             row = [company, dno, matching, diamond, pcs, delivery, assignee, ptype, rate, pcs * rate, img_url, datetime.now().isoformat()]
             try:
@@ -196,7 +203,7 @@ def show_inventory():
                 delivery = st.number_input("Delivery PCS", value=row["Delivery_PCS"], min_value=0)
                 a1, a2, a3 = st.columns(3)
                 assignee = a1.text_input("Assignee", value=row["Assignee"])
-                ptype = a2.selectbox("Type", ["WITH LACE", "WITHOUT LACE", "With Lace", "Without Lace"], index=["WITH LACE", "WITHOUT LACE", "With Lace", "Without Lace"].index(row["Type"]) if row["Type"] in ["WITH LACE", "WITHOUT LACE", "With Lace", "Without Lace"] else 0) # Ensure selected value is in options
+                ptype = a2.selectbox("Type", ["WITH LACE", "WITHOUT LACE", "With Lace", "Without Lace"], index=0)
                 rate = a3.number_input("Rate", value=float(row["Rate"]), step=0.01)
                 image = st.file_uploader("Replace Image")
                 c1, c2 = st.columns(2)
@@ -205,23 +212,14 @@ def show_inventory():
                     if image:
                         image_url = upload_to_drive(image)
                     new_row = [company, dno, matching, diamond, pcs, delivery, assignee, ptype, rate, pcs * rate, image_url, datetime.now().isoformat()]
-                    try:
-                        # Update the row directly using sheet.update()
-                        # Assuming your columns are A to L, adjust if necessary
-                        sheet.update(f'A{row_num}:L{row_num}', [new_row])
-                        st.success("✅ Updated")
-                        st.rerun()
-
-                    except Exception as e:
-                        st.error(f"Failed to update: {e}")
-
+                    sheet.delete_rows(row_num)
+                    sheet.insert_row(new_row, row_num)
+                    st.success("✅ Updated")
+                    st.experimental_rerun()
                 if c2.form_submit_button("Delete"):
-                    try:
-                        sheet.delete_row(row_num)
-                        st.warning("❌ Deleted")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Failed to delete: {e}")
+                    sheet.delete_rows(row_num)
+                    st.warning("❌ Deleted")
+                    st.experimental_rerun()
 
 show_add_form()
 show_inventory()
