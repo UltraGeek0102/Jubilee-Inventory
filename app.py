@@ -119,6 +119,8 @@ def show_add_form():
 
     
 
+    +1}")
+
     with st.form("add_form"):
         col1, col2, col3 = st.columns(3)
         company = col1.text_input("Company")
@@ -263,6 +265,9 @@ def show_inventory():
                 dno = col2.text_input("D.NO", value=row["D.NO"])
                 diamond = col3.text_input("Diamond", value=row["Diamond"])
                 matching_dict = {}
+                if st.button(f"➕ Add Color", key=f"add_edit_row_{i}"):
+                    st.session_state[f"edit_rows_{i}"].append(f"Color{len(st.session_state[f"edit_rows_{i}"])+1}")
+
                 with st.expander("MATCHING (Color + PCS):", expanded=False):
                     st.markdown("<b>Color</b> and <b>PCS</b> entries — click ➕ to add more.", unsafe_allow_html=True)
                 if f"edit_rows_{i}" not in st.session_state:
@@ -280,8 +285,7 @@ def show_inventory():
                     div[data-testid=\"stHorizontalBlock\"] > div:first-child { width: 20px !important; }
                     </style>
                 """, unsafe_allow_html=True)
-                if st.button(f"➕ Add Color", key=f"add_edit_row_{i}"):
-                    st.session_state[f"edit_rows_{i}"].append(f"Color{len(st.session_state[f"edit_rows_{i}"])+1}")
+                
                     if st.button(f"➕ Add New Matching Row", key=f"add_edit_row_{i}"):
                         st.session_state[f"edit_rows_{i}"].append(f"Color{len(st.session_state[f"edit_rows_{i}"])+1}")
                         with colm1:
