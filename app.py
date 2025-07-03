@@ -90,31 +90,9 @@ def upload_to_drive(uploaded_file):
         uploaded = drive_service.files().create(body=file_metadata, media_body=media, fields="id").execute()
         drive_service.permissions().create(fileId=uploaded["id"], body={"role": "reader", "type": "anyone"}).execute()
         return f"https://drive.google.com/uc?id={uploaded['id']}"
-    except:
+    except Exception as e:
+        print("Upload error:", e)
         return FALLBACK_IMAGE
-
-# --- CSV/Excel Export ---
-def get_csv_excel_download_links(df):
-    df["Difference in PCS"] = df["PCS"] - df["Delivery_PCS"]
-    csv = df.to_csv(index=False).encode('utf-8')
-    excel_buffer = io.BytesIO()
-    with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer:
-        df.to_excel(writer, index=False, sheet_name='Inventory')
-    excel_data = excel_buffer.getvalue()
-    b64_csv = base64.b64encode(csv).decode()
-    b64_excel = base64.b64encode(excel_data).decode()
-    return f'<a href="data:file/csv;base64,{b64_csv}" download="inventory.csv">📅 CSV</a> | <a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64_excel}" download="inventory.xlsx">📅 Excel</a>'
-
-# --- Dashboard ---
-def show_dashboard(df):
-    st.subheader("📊 Dashboard")
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Total PCS", int(df["PCS"].sum()))
-    col2.metric("Pending", int((df["PCS"] - df["Delivery_PCS"]).sum()))
-    col3.metric("Total Value", f"₹{int(df['Total'].sum())}")
-    chart_data = df.groupby("Company")["PCS"].sum().reset_index()
-    chart = alt.Chart(chart_data).mark_bar().encode(x="Company", y="PCS", tooltip=["Company", "PCS"])
-    st.altair_chart(chart, use_container_width=True)
 
 # --- Add Product Form ---
 def show_add_form():
@@ -146,12 +124,15 @@ def show_add_form():
         delivery = st.number_input("Delivery PCS", min_value=0, format="%d")
         a1, a2, a3 = st.columns(3)
         assignee = a1.text_input("Assignee")
-        ptype = a2.selectbox("Type", ["WITH LACE", "WITHOUT LACE", "With Lace", "Without Lace"])
+        ptype = a2.selectbox("Type", ["WITH LACE", "WITHOUT LACE"])
         rate = a3.number_input("Rate", min_value=0.0, step=0.01)
         st.write(f"Total: ₹{pcs * rate:.2f}")
         image = st.file_uploader("Upload Image", type=["png", "jpg", "jpeg"])
         submit = st.form_submit_button("Add")
         if submit:
+            if not company or not dno or pcs == 0:
+                st.warning("❗ Company, D.NO and PCS are required.")
+                return
             existing = sheet.get_all_records()
             conflict = next((r for r in existing if r["Company"] == company and r["D.NO"] == dno), None)
             if conflict:
@@ -166,29 +147,20 @@ def show_add_form():
             except Exception as e:
                 st.error(f"Failed to add: {e}")
 
-# --- Export Matching Table ---
-def export_matching_table(df):
-    matching_data = []
-    for _, row in df.iterrows():
-        for pair in row["Matching"].split(","):
-            if ":" in pair and len(pair.split(":")) == 2:
-                color, qty = pair.strip().split(":")
-                matching_data.append({
-                    "Company": row["Company"],
-                    "D.NO": row["D.NO"],
-                    "Color": color.strip(),
-                    "PCS": int(qty.strip())
-                })
-    export_df = pd.DataFrame(matching_data)
-    excel_buf = io.BytesIO()
-    with pd.ExcelWriter(excel_buf, engine='xlsxwriter') as writer:
-        export_df.to_excel(writer, index=False, sheet_name="Matching")
-    st.download_button(
-        label="📄 Export Matching Table (All Rows)",
-        data=excel_buf.getvalue(),
-        file_name="matching_export.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+# --- Dashboard ---
+def show_dashboard(df):
+    st.subheader("📊 Dashboard")
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Total PCS", int(df["PCS"].sum()))
+    col2.metric("Pending", int((df["PCS"] - df["Delivery_PCS"]).sum()))
+    col3.metric("Total Value", f"₹{int(df['Total'].sum())}")
+    chart_data = df.groupby("Company")["PCS"].sum().reset_index()
+    chart = alt.Chart(chart_data).mark_bar().encode(
+        x=alt.X("Company", sort=None, axis=alt.Axis(labelAngle=-45)),
+        y="PCS",
+        tooltip=["Company", "PCS"]
     )
+    st.altair_chart(chart, use_container_width=True)
 
 # --- Inventory Display ---
 def show_inventory():
@@ -200,6 +172,33 @@ def show_inventory():
     df["Delivery_PCS"] = pd.to_numeric(df["Delivery_PCS"], errors="coerce").fillna(0).astype(int)
     df["Pending"] = df["PCS"] - df["Delivery_PCS"]
     df["Difference in PCS"] = df["Pending"]
+
+    with st.expander("🔎 Filter / Search"):
+        f1, f2 = st.columns(2)
+        company_filter = f1.multiselect("Company", options=df["Company"].unique())
+        type_filter = f2.multiselect("Type", options=df["Type"].unique())
+        search = st.text_input("Search keyword")
+        sort_by = st.selectbox("Sort by", ["PCS", "Pending", "Rate", "Total"], index=0)
+        ascending = st.checkbox("⬆️ Sort Ascending", value=True)
+
+        if company_filter:
+            df = df[df["Company"].isin(company_filter)]
+        if type_filter:
+            df = df[df["Type"].isin(type_filter)]
+        if search:
+            df = df[df.apply(lambda row: search.lower() in str(row).lower(), axis=1)]
+        df = df.sort_values(by=sort_by, ascending=ascending)
+
+    # Call print view AFTER filtering
+    download_print_view(df)
+
+    st.markdown(get_csv_excel_download_links(df), unsafe_allow_html=True)
+
+    total_pages = len(df) // ROWS_PER_PAGE + (1 if len(df) % ROWS_PER_PAGE > 0 else 0)
+    page = st.number_input("Page", min_value=1, max_value=total_pages, step=1)
+    start = (page - 1) * ROWS_PER_PAGE
+    end = start + ROWS_PER_PAGE
+    sliced_df = df.iloc[start:end]
 
     show_dashboard(df)
 
