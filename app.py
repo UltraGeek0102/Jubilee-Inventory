@@ -261,8 +261,6 @@ def show_inventory():
                 pcs = sum(matching_dict.values())
                 st.write(f"🎯 Total PCS: {pcs}")
                 st.write(f"💰 Total Value: ₹{pcs * rate:.2f}")
-                
-                    pcs = 0
                 delivery = st.number_input("Delivery PCS", value=row["Delivery_PCS"], min_value=0)
                 a1, a2, a3 = st.columns(3)
                 assignee = a1.text_input("Assignee", value=row["Assignee"])
