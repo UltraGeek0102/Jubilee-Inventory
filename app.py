@@ -17,6 +17,7 @@ import uuid
 
 # --- Upload to Drive ---
 def upload_to_drive(uploaded_file):
+    pass
 if uploaded_file is None:
     return FALLBACK_IMAGE
     try:
@@ -44,6 +45,7 @@ if uploaded_file is None:
     dno = col2.text_input("D.NO")
     diamond = col3.text_input("Diamond")
     matching_dict = {}
+    pass
 
     with st.expander("MATCHING (Color + PCS):"):
     st.markdown("<b>Color</b> and <b>PCS</b> entries — click ➕ to add more.", unsafe_allow_html=True)
@@ -100,6 +102,7 @@ if uploaded_file is None:
         tooltip=["Company", "PCS"]
         )
         st.altair_chart(chart, use_container_width=True)
+    pass
 
         # --- Inventory Display ---
         def show_inventory():
@@ -111,6 +114,7 @@ if uploaded_file is None:
         df["Delivery_PCS"] = pd.to_numeric(df["Delivery_PCS"], errors="coerce").fillna(0).astype(int)
         df["Pending"] = df["PCS"] - df["Delivery_PCS"]
         df["Difference in PCS"] = df["Pending"]
+    pass
 
         with st.expander("🔎 Filter / Search"):
         f1, f2 = st.columns(2)
@@ -241,6 +245,7 @@ if uploaded_file is None:
         html += df.to_html(index=False, escape=False)
         html += "</body></html>"
         return html
+    pass
 
         def download_print_view(df):
         st.subheader("🖨️ Print View / PDF Report")
@@ -248,6 +253,7 @@ if uploaded_file is None:
         b64 = base64.b64encode(html_content.encode()).decode()
         href = f'<a href="data:text/html;base64,{b64}" download="jubilee_inventory_report.html">📄 Download Printable HTML</a>'
         st.markdown(href, unsafe_allow_html=True)
+    pass
 
         # Add this call after filtering and slicing the DataFrame inside show_inventory()
         download_print_view(df)
