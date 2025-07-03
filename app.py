@@ -125,19 +125,27 @@ def show_add_form():
         dno = col2.text_input("D.NO")
         diamond = col3.text_input("Diamond")
         matching_dict = {}
-        with st.expander("Matching Table"):
-            st.markdown("<b>Enter color and PCS. Total updates live below.</b>", unsafe_allow_html=True)
-            colm1, colm2 = st.columns([2, 1])
+        with st.expander("MATCHING (Color + PCS):"):
+            st.markdown("<b>Color</b> and <b>PCS</b> entries — click ➕ to add more.", unsafe_allow_html=True)
             if "matching_rows" not in st.session_state:
-                st.session_state.matching_rows = ["Red", "Blue", "Green", "Yellow", "Black"]
-            remove_keys = []
-            for color in st.session_state.matching_rows:
-                with colm1:
-                    name = st.text_input(f"Color ({color})", value=color, key=f"color_{color}")
-                with colm2:
-                    qty = st.number_input(f"PCS", min_value=0, step=1, key=f"qty_{color}")
+                st.session_state.matching_rows = ["Red", "Blue", "Green"]
+
+            for idx, color in enumerate(st.session_state.matching_rows):
+                cols = st.columns([0.2, 2, 1])
+                cols[0].markdown(f"**{idx + 1}**")
+                name = cols[1].text_input("Color", value=color, key=f"color_{color}")
+                qty = cols[2].number_input("PCS", min_value=0, step=1, key=f"qty_{color}")
                 if name:
                     matching_dict[name] = qty
+
+            st.markdown("""
+                <style>
+                div[data-testid="stHorizontalBlock"] > div:first-child { width: 20px !important; }
+                </style>
+            """, unsafe_allow_html=True)
+
+            if st.button("➕ Add Color"):
+                st.session_state.matching_rows.append(f"Color{len(st.session_state.matching_rows)+1}")
             
         matching = ", ".join(f"{k}:{v}" for k, v in matching_dict.items() if v > 0)
         pcs = sum(matching_dict.values())
@@ -255,18 +263,25 @@ def show_inventory():
                 dno = col2.text_input("D.NO", value=row["D.NO"])
                 diamond = col3.text_input("Diamond", value=row["Diamond"])
                 matching_dict = {}
-                with st.expander("Matching Table", expanded=False):
-                    if f"edit_rows_{i}" not in st.session_state:
-                        st.session_state[f"edit_rows_{i}"] = [s.split(":" )[0] for s in row["Matching"].split(",") if ":" in s]
-                    colm1, colm2 = st.columns([2, 1])
-                    for color in st.session_state[f"edit_rows_{i}"]:
-                        val = next((int(s.split(":" )[1]) for s in row["Matching"].split(",") if s.split(":" )[0] == color), 0)
-                        with colm1:
-                            name = st.text_input(f"Color ({color})", value=color, key=f"edit_color_{i}_{color}")
-                        with colm2:
-                            qty = st.number_input(f"PCS", value=val, min_value=0, step=1, key=f"edit_qty_{i}_{color}")
-                        if name:
-                            matching_dict[name] = qty
+                with st.expander("MATCHING (Color + PCS):", expanded=False):
+                st.markdown("<b>Color</b> and <b>PCS</b> entries — click ➕ to add more.", unsafe_allow_html=True)
+                if f"edit_rows_{i}" not in st.session_state:
+                    st.session_state[f"edit_rows_{i}"] = [s.split(":" )[0] for s in row["Matching"].split(",") if ":" in s]
+                for idx, color in enumerate(st.session_state[f"edit_rows_{i}"]):
+                    val = next((int(s.split(":" )[1]) for s in row["Matching"].split(",") if s.split(":" )[0] == color), 0)
+                    cols = st.columns([0.2, 2, 1])
+                    cols[0].markdown(f"**{idx + 1}**")
+                    name = cols[1].text_input("Color", value=color, key=f"edit_color_{i}_{color}")
+                    qty = cols[2].number_input("PCS", value=val, min_value=0, step=1, key=f"edit_qty_{i}_{color}")
+                    if name:
+                        matching_dict[name] = qty
+                st.markdown("""
+                    <style>
+                    div[data-testid=\"stHorizontalBlock\"] > div:first-child { width: 20px !important; }
+                    </style>
+                """, unsafe_allow_html=True)
+                if st.button(f"➕ Add Color", key=f"add_edit_row_{i}"):
+                    st.session_state[f"edit_rows_{i}"].append(f"Color{len(st.session_state[f"edit_rows_{i}"])+1}")
                     if st.button(f"➕ Add New Matching Row", key=f"add_edit_row_{i}"):
                         st.session_state[f"edit_rows_{i}"].append(f"Color{len(st.session_state[f"edit_rows_{i}"])+1}")
                         with colm1:
