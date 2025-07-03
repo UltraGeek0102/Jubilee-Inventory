@@ -17,7 +17,7 @@ import uuid
 # For Google Sheets and Google Drive API access
 # Refer to your Google Cloud Project and Google Sheets/Drive API setup
 # For example, your service account key file path:
-SERVICE_ACCOUNT_FILE = "your-service-account-key.json" # Replace with your service account key file path
+SERVICE_ACCOUNT_FILE = "my-jubilee-inventory-123456.json" # Example if in same directory
 SCOPES = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
 SPREADSHEET_NAME = "Jubilee_Inventory" # Replace with your Google Sheet name
 DRIVE_FOLDER_ID = "your_google_drive_folder_id" # Replace with your Google Drive Folder ID
