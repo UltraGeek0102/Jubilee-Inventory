@@ -132,8 +132,6 @@ def show_add_form():
         matching = ", ".join(f"{k}:{v}" for k, v in matching_dict.items() if v > 0)
         pcs = sum(matching_dict.values())
         st.write(f"🎯 Total PCS: {pcs}")
-        rate = a3.number_input("Rate", min_value=0.0, step=0.01)
-        st.write(f"💰 Total Value: ₹{pcs * rate:.2f}")
         st.write(f"🎯 Total PCS: {pcs}")
         delivery = st.number_input("Delivery PCS", min_value=0, format="%d")
         a1, a2, a3 = st.columns(3)
