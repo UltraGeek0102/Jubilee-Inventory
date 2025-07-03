@@ -116,7 +116,6 @@ def show_add_form():
     st.subheader("➕ Add Product")
     if "matching_rows" not in st.session_state:
         st.session_state.matching_rows = ["Red", "Blue", "Green", "Yellow", "Black"]
-    +1}")
 
     with st.form("add_form"):
         col1, col2, col3 = st.columns(3)
