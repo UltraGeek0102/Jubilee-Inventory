@@ -1,4 +1,4 @@
-# jubilee_streamlit/app.py — Full Inventory Web App with Drive Uploads, Filters, Auth, Print View
+# jubilee_streamlit/app.py — Fixed + Enhanced Inventory Web App
 import streamlit as st
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
@@ -47,17 +47,17 @@ st.markdown("""
     <link rel="icon" href="https://raw.githubusercontent.com/ultrageek0102/Jubilee-Inventory/main/favicon.ico" type="image/x-icon">
 """, unsafe_allow_html=True)
 
+# --- Constants ---
 SCOPE = [
     "https://spreadsheets.google.com/feeds",
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive.file",
     "https://www.googleapis.com/auth/drive"
 ]
-
 FALLBACK_IMAGE = "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0a/No-image-available.png/600px-No-image-available.png"
 ROWS_PER_PAGE = 50
 
-# --- Auth ---
+# --- Authentication ---
 if "PASSWORD" in st.secrets:
     pw = st.text_input("🔐 Enter password to access:", type="password")
     if pw != st.secrets["PASSWORD"]:
@@ -76,6 +76,7 @@ except Exception as e:
 
 DRIVE_FOLDER_ID = st.secrets.get("DRIVE_FOLDER_ID")
 
+# --- Upload to Drive ---
 def upload_to_drive(uploaded_file):
     if uploaded_file is None:
         return FALLBACK_IMAGE
@@ -92,8 +93,9 @@ def upload_to_drive(uploaded_file):
     except:
         return FALLBACK_IMAGE
 
+# --- CSV/Excel Export ---
 def get_csv_excel_download_links(df):
-    csv = df["Difference in PCS"] = df["PCS"] - df["Delivery_PCS"]
+    df["Difference in PCS"] = df["PCS"] - df["Delivery_PCS"]
     csv = df.to_csv(index=False).encode('utf-8')
     excel_buffer = io.BytesIO()
     with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer:
@@ -101,36 +103,33 @@ def get_csv_excel_download_links(df):
     excel_data = excel_buffer.getvalue()
     b64_csv = base64.b64encode(csv).decode()
     b64_excel = base64.b64encode(excel_data).decode()
-    return f'<a href="data:file/csv;base64,{b64_csv}" download="inventory.csv">📥 CSV</a> | <a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64_excel}" download="inventory.xlsx">📥 Excel</a>'
+    return f'<a href="data:file/csv;base64,{b64_csv}" download="inventory.csv">📅 CSV</a> | <a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64_excel}" download="inventory.xlsx">📅 Excel</a>'
 
+# --- Dashboard ---
 def show_dashboard(df):
     st.subheader("📊 Dashboard")
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
     col1.metric("Total PCS", int(df["PCS"].sum()))
     col2.metric("Pending", int((df["PCS"] - df["Delivery_PCS"]).sum()))
+    col3.metric("Total Value", f"₹{int(df['Total'].sum())}")
     chart_data = df.groupby("Company")["PCS"].sum().reset_index()
     chart = alt.Chart(chart_data).mark_bar().encode(x="Company", y="PCS", tooltip=["Company", "PCS"])
     st.altair_chart(chart, use_container_width=True)
 
+# --- Add Product Form ---
 def show_add_form():
     st.subheader("➕ Add Product")
     if "matching_rows" not in st.session_state:
-        st.session_state.matching_rows = ["Red", "Blue", "Green", "Yellow", "Black"]
-
-    
-
-
+        st.session_state.matching_rows = ["Red", "Blue", "Green"]
     with st.form("add_form"):
         col1, col2, col3 = st.columns(3)
         company = col1.text_input("Company")
         dno = col2.text_input("D.NO")
         diamond = col3.text_input("Diamond")
         matching_dict = {}
+
         with st.expander("MATCHING (Color + PCS):"):
             st.markdown("<b>Color</b> and <b>PCS</b> entries — click ➕ to add more.", unsafe_allow_html=True)
-            if "matching_rows" not in st.session_state:
-                st.session_state.matching_rows = ["Red", "Blue", "Green"]
-
             for idx, color in enumerate(st.session_state.matching_rows):
                 cols = st.columns([0.2, 2, 1])
                 cols[0].markdown(f"**{idx + 1}**")
@@ -138,19 +137,11 @@ def show_add_form():
                 qty = cols[2].number_input("PCS", min_value=0, step=1, key=f"qty_{color}")
                 if name:
                     matching_dict[name] = qty
-
-            st.markdown("""
-                <style>
-                div[data-testid="stHorizontalBlock"] > div:first-child { width: 20px !important; }
-                </style>
-            """, unsafe_allow_html=True)
-
             if st.button("➕ Add Color"):
                 st.session_state.matching_rows.append(f"Color{len(st.session_state.matching_rows)+1}")
-            
+
         matching = ", ".join(f"{k}:{v}" for k, v in matching_dict.items() if v > 0)
         pcs = sum(matching_dict.values())
-        st.write(f"🎯 Total PCS: {pcs}")
         st.write(f"🎯 Total PCS: {pcs}")
         delivery = st.number_input("Delivery PCS", min_value=0, format="%d")
         a1, a2, a3 = st.columns(3)
@@ -164,10 +155,8 @@ def show_add_form():
             existing = sheet.get_all_records()
             conflict = next((r for r in existing if r["Company"] == company and r["D.NO"] == dno), None)
             if conflict:
-                msg = f"🚫 Duplicate entry: <b>{company} - {dno}</b> already exists with rate ₹{conflict['Rate']} and PCS {conflict['PCS']}."
-                st.markdown(msg, unsafe_allow_html=True)
+                st.markdown(f"🚫 Duplicate entry: <b>{company} - {dno}</b> already exists.", unsafe_allow_html=True)
                 return
-
             img_url = upload_to_drive(image)
             row = [company, dno, matching, diamond, pcs, delivery, assignee, ptype, rate, pcs * rate, img_url, datetime.now().isoformat()]
             try:
@@ -177,6 +166,7 @@ def show_add_form():
             except Exception as e:
                 st.error(f"Failed to add: {e}")
 
+# --- Export Matching Table ---
 def export_matching_table(df):
     matching_data = []
     for _, row in df.iterrows():
@@ -194,12 +184,13 @@ def export_matching_table(df):
     with pd.ExcelWriter(excel_buf, engine='xlsxwriter') as writer:
         export_df.to_excel(writer, index=False, sheet_name="Matching")
     st.download_button(
-        label="📤 Export Matching Table (All Rows)",
+        label="📄 Export Matching Table (All Rows)",
         data=excel_buf.getvalue(),
         file_name="matching_export.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
+# --- Inventory Display ---
 def show_inventory():
     st.subheader("📦 Inventory")
     df = pd.DataFrame(sheet.get_all_records())
@@ -208,7 +199,7 @@ def show_inventory():
     df["PCS"] = pd.to_numeric(df["PCS"], errors="coerce").fillna(0).astype(int)
     df["Delivery_PCS"] = pd.to_numeric(df["Delivery_PCS"], errors="coerce").fillna(0).astype(int)
     df["Pending"] = df["PCS"] - df["Delivery_PCS"]
-    df["Difference in PCS"] = df["PCS"] - df["Delivery_PCS"]
+    df["Difference in PCS"] = df["Pending"]
 
     show_dashboard(df)
 
@@ -230,7 +221,7 @@ def show_inventory():
 
     st.markdown(get_csv_excel_download_links(df), unsafe_allow_html=True)
 
-    total_pages = len(df) // ROWS_PER_PAGE + 1
+    total_pages = len(df) // ROWS_PER_PAGE + (1 if len(df) % ROWS_PER_PAGE > 0 else 0)
     page = st.number_input("Page", min_value=1, max_value=total_pages, step=1)
     start = (page - 1) * ROWS_PER_PAGE
     end = start + ROWS_PER_PAGE
@@ -240,66 +231,38 @@ def show_inventory():
         row = sliced_df.loc[i]
         row_num = int(row["SheetRowNum"])
         with st.expander(f"{row['Company']} - {row['D.NO']} | Pending: {row['Pending']}"):
-            if st.button(f"⬇️ Export Matching Only — {row['Company']} {row['D.NO']}", key=f"export_match_{i}"):
-                match_pairs = [s.strip() for s in row["Matching"].split(",") if ":" in s]
-                match_data = [{"Color": k.split(":")[0].strip(), "PCS": int(k.split(":")[1])} for k in match_pairs]
-                match_df = pd.DataFrame(match_data)
-                buf = io.BytesIO()
-                with pd.ExcelWriter(buf, engine='xlsxwriter') as writer:
-                    match_df.to_excel(writer, index=False, sheet_name="Matching")
-                st.download_button(
-                    label="📤 Download This Matching Table",
-                    data=buf.getvalue(),
-                    file_name=f"matching_{row['Company']}_{row['D.NO']}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    key=f"match_dl_{i}"
-                )
             st.markdown(f'<a href="{row["Image"] or FALLBACK_IMAGE}" target="_blank"><img src="{row["Image"] or FALLBACK_IMAGE}" width="200"></a>', unsafe_allow_html=True)
             st.write(f"Diamond: {row['Diamond']} | Type: {row['Type']} | Assignee: {row['Assignee']}")
-            st.write(f"PCS: {row['PCS']} | Delivered: {row['Delivery_PCS']} | ➖ Difference: {row['Difference in PCS']} | Rate: ₹{row['Rate']} | Total: ₹{row['Total']}")
+            st.write(f"PCS: {row['PCS']} | Delivered: {row['Delivery_PCS']} | Rate: ₹{row['Rate']} | Total: ₹{row['Total']}")
             st.write(f"Matching: {row['Matching']}")
-            if st.button(f"➕ Add Color", key=f"add_edit_row_{i}"):
-                if f"edit_rows_{i}" not in st.session_state:
-                  st.session_state[f"edit_rows_{i}"] = []
-                st.session_state[f"edit_rows_{i}"].append(f"Color{len(st.session_state[f'edit_rows_{i}'])+1}")
-                st.rerun()
 
-
-        with st.form(f"edit_{i}"):
+            with st.form(f"edit_{i}"):
                 col1, col2, col3 = st.columns(3)
                 company = col1.text_input("Company", value=row["Company"])
                 dno = col2.text_input("D.NO", value=row["D.NO"])
                 diamond = col3.text_input("Diamond", value=row["Diamond"])
                 matching_dict = {}
-                
 
                 with st.expander("MATCHING (Color + PCS):", expanded=False):
                     st.markdown("<b>Color</b> and <b>PCS</b> entries — click ➕ to add more.", unsafe_allow_html=True)
-                if f"edit_rows_{i}" not in st.session_state:
-                    st.session_state[f"edit_rows_{i}"] = [s.split(":" )[0] for s in row["Matching"].split(",") if ":" in s]
-                for idx, color in enumerate(st.session_state[f"edit_rows_{i}"]):
-                    val = next((int(s.split(":" )[1]) for s in row["Matching"].split(",") if s.split(":" )[0] == color), 0)
-                    cols = st.columns([0.2, 2, 1])
-                    cols[0].markdown(f"**{idx + 1}**")
-                    name = cols[1].text_input("Color", value=color, key=f"edit_color_{i}_{color}")
-                    qty = cols[2].number_input("PCS", value=val, min_value=0, step=1, key=f"edit_qty_{i}_{color}")
-                    if name:
-                        matching_dict[name] = qty
-                st.markdown("""
-                    <style>
-                    div[data-testid=\"stHorizontalBlock\"] > div:first-child { width: 20px !important; }
-                    </style>
-                """, unsafe_allow_html=True)
-                
-                        if st.button(f"➕ Add New Matching Row", key=f"add_edit_row_{i}"):
-        if f"edit_rows_{i}" not in st.session_state:
-            st.session_state[f"edit_rows_{i}"] = []
-        st.session_state[f"edit_rows_{i}"].append(f"Color{len(st.session_state[f'edit_rows_{i}'])+1}")
-        st.rerun()
+                    if f"edit_rows_{i}" not in st.session_state:
+                        st.session_state[f"edit_rows_{i}"] = [s.split(":")[0] for s in row["Matching"].split(",") if ":" in s]
+                    for idx, color in enumerate(st.session_state[f"edit_rows_{i}"]):
+                        val = next((int(s.split(":")[1]) for s in row["Matching"].split(",") if s.split(":")[0] == color), 0)
+                        cols = st.columns([0.2, 2, 1])
+                        cols[0].markdown(f"**{idx + 1}**")
+                        name = cols[1].text_input("Color", value=color, key=f"edit_color_{i}_{color}")
+                        qty = cols[2].number_input("PCS", value=val, min_value=0, step=1, key=f"edit_qty_{i}_{color}")
+                        if name:
+                            matching_dict[name] = qty
+                    if st.button(f"➕ Add New Matching Row", key=f"add_edit_row_{i}"):
+                        st.session_state[f"edit_rows_{i}"].append(f"Color{len(st.session_state[f'edit_rows_{i}'])+1}")
+                        st.rerun()
+
                 matching = ", ".join(f"{k}:{v}" for k, v in matching_dict.items() if v > 0)
                 pcs = sum(matching_dict.values())
                 st.write(f"🎯 Total PCS: {pcs}")
-                st.write(f"💰 Total Value: ₹{pcs * rate:.2f}")
+                st.write(f"💰 Total Value: ₹{pcs * float(row['Rate']):.2f}")
                 delivery = st.number_input("Delivery PCS", value=row["Delivery_PCS"], min_value=0)
                 a1, a2, a3 = st.columns(3)
                 assignee = a1.text_input("Assignee", value=row["Assignee"])
@@ -321,7 +284,33 @@ def show_inventory():
                 if c2.form_submit_button("Delete"):
                     sheet.delete_rows(row_num)
                     st.warning("❌ Deleted")
-                    st.experimental_rerun()
+                    st.rerun()
+# --- PDF / Print View ---
+def generate_printable_html(df):
+    html = """
+    <html><head><style>
+    body { font-family: Arial, sans-serif; padding: 40px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid #999; padding: 8px; text-align: left; }
+    th { background-color: #f2f2f2; }
+    h2 { margin-top: 40px; }
+    </style></head><body>
+    <h1>Jubilee Inventory Report</h1>
+    <p>Generated on: """ + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + "</p>"
+    html += df.to_html(index=False, escape=False)
+    html += "</body></html>"
+    return html
 
+def download_print_view(df):
+    st.subheader("🖨️ Print View / PDF Report")
+    html_content = generate_printable_html(df)
+    b64 = base64.b64encode(html_content.encode()).decode()
+    href = f'<a href="data:text/html;base64,{b64}" download="jubilee_inventory_report.html">📄 Download Printable HTML</a>'
+    st.markdown(href, unsafe_allow_html=True)
+
+# Add this call after filtering and slicing the DataFrame inside show_inventory()
+download_print_view(df)
+
+# --- Main ---
 show_add_form()
 show_inventory()
