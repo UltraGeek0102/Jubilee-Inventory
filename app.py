@@ -17,7 +17,7 @@ import uuid
 import numpy as np
 
 # --- Configuration ---
-SERVICE_ACCOUNT_FILE = "service_account_key.json"
+SERVICE_ACCOUNT_FILE = "streamlit-sheet-access@jubilee-inventory.iam.gserviceaccount.com"
 SCOPES = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
 SPREADSHEET_NAME = "Jubilee_Inventory"
 LOG_SHEET_NAME = "Logs"
@@ -96,62 +96,31 @@ def get_download_links(df):
     link_excel = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64_excel}" download="inventory.xlsx">Download Excel</a>'
     return f"{link_csv} | {link_excel}"
 
-# --- Add Product ---
-def add_product():
-    st.subheader("➕ Add Product")
-    with st.form("add_form"):
-        c1, c2, c3 = st.columns(3)
-        company = c1.text_input("Company").strip()
-        dno = c2.text_input("D.NO").strip()
-        diamond = c3.text_input("Diamond").strip()
+# --- Printable Report ---
+def get_printable_html(df):
+    df_html = df.copy()
+    if "Image" in df_html.columns:
+        df_html["Image"] = df_html["Image"].apply(lambda x: f'<img src="{x or FALLBACK_IMAGE}" width="100">')
+    html = f"""
+    <html><head><style>
+    body {{ font-family: Arial; padding: 20px; }}
+    table {{ border-collapse: collapse; width: 100%; }}
+    th, td {{ border: 1px solid #ddd; padding: 8px; }}
+    th {{ background-color: #f4f4f4; }}
+    img {{ display: block; margin: 5px 0; }}
+    </style></head><body>
+    <h2>Jubilee Inventory Report</h2>
+    <p>Generated on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+    {df_html.to_html(escape=False, index=False)}
+    </body></html>
+    """
+    return html
 
-        if "match_rows" not in st.session_state:
-            st.session_state.match_rows = ["Red", "Blue"]
-        match_dict = {}
-
-        with st.expander("Matching (Color + PCS)", expanded=True):
-            for i, color in enumerate(st.session_state.match_rows):
-                cols = st.columns([0.3, 2, 1])
-                cols[0].markdown(f"**{i+1}**")
-                name = cols[1].text_input("Color", value=color, key=f"match_color_{i}")
-                pcs = cols[2].number_input("PCS", min_value=0, key=f"match_pcs_{i}")
-                if name:
-                    match_dict[name] = pcs
-            if st.button("➕ Add Color"):
-                st.session_state.match_rows.append(f"Color{len(st.session_state.match_rows)+1}")
-                st.rerun()
-
-        matching_str = ", ".join(f"{k}:{v}" for k, v in match_dict.items() if v > 0)
-        pcs_total = sum(match_dict.values())
-        st.write(f"🎯 Total PCS: {pcs_total}")
-
-        delivery = st.number_input("Delivery PCS", min_value=0, value=0)
-        a1, a2, a3 = st.columns(3)
-        assignee = a1.text_input("Assignee")
-        ptype = a2.selectbox("Type", ["WITH LACE", "WITHOUT LACE"])
-        rate = a3.number_input("Rate", min_value=0.0, step=0.01)
-
-        st.write(f"💰 Total: ₹{pcs_total * rate:.2f}")
-        image = st.file_uploader("Upload Image", type=["jpg", "jpeg", "png"])
-        submit = st.form_submit_button("Add Product")
-
-        if submit:
-            if not company or not dno or pcs_total == 0:
-                st.warning("Company, D.NO and PCS required.")
-                return
-
-            all_data = sheet.get_all_records()
-            duplicate = any(r["Company"].lower() == company.lower() and r["D.NO"].lower() == dno.lower() for r in all_data)
-            if duplicate:
-                st.error(f"Product {company} - {dno} already exists.")
-                return
-
-            img_url = upload_to_drive(image)
-            new_row = [company, dno, matching_str, diamond, pcs_total, delivery, assignee, ptype, rate, pcs_total*rate, img_url, datetime.now().isoformat()]
-            sheet.append_row(new_row)
-            log_action("Add", f"{company} - {dno}")
-            st.success("Product added!")
-            st.rerun()
+def download_html_report(df):
+    html = get_printable_html(df)
+    b64 = base64.b64encode(html.encode()).decode()
+    href = f'<a href="data:text/html;base64,{b64}" download="jubilee_inventory_report.html">📄 Download Printable Report</a>'
+    st.markdown(href, unsafe_allow_html=True)
 
 # --- Main ---
 def main():
@@ -179,6 +148,16 @@ def main():
         st.metric("Total Value", f"₹{df['Total'].sum():,.0f}")
 
         st.markdown(get_download_links(df), unsafe_allow_html=True)
+        download_html_report(df)
+
+        # Altair Chart
+        if not df.empty:
+            chart = alt.Chart(df).mark_bar().encode(
+                x=alt.X("Company", sort='-y'),
+                y="PCS",
+                tooltip=["Company", "PCS"]
+            ).properties(title="PCS by Company")
+            st.altair_chart(chart, use_container_width=True)
 
         with st.expander("🔍 Filter"):
             f1, f2 = st.columns(2)
