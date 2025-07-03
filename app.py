@@ -291,11 +291,11 @@ def show_inventory():
                     </style>
                 """, unsafe_allow_html=True)
                 
-                    if st.button(f"➕ Add New Matching Row", key=f"add_edit_row_{i}"):
-    if f"edit_rows_{i}" not in st.session_state:
-        st.session_state[f"edit_rows_{i}"] = []
-    st.session_state[f"edit_rows_{i}"].append(f"Color{len(st.session_state[f'edit_rows_{i}'])+1}")
-    st.rerun()
+                        if st.button(f"➕ Add New Matching Row", key=f"add_edit_row_{i}"):
+        if f"edit_rows_{i}" not in st.session_state:
+            st.session_state[f"edit_rows_{i}"] = []
+        st.session_state[f"edit_rows_{i}"].append(f"Color{len(st.session_state[f'edit_rows_{i}'])+1}")
+        st.rerun()
                 matching = ", ".join(f"{k}:{v}" for k, v in matching_dict.items() if v > 0)
                 pcs = sum(matching_dict.values())
                 st.write(f"🎯 Total PCS: {pcs}")
