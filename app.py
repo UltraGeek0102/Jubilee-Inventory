@@ -259,10 +259,10 @@ def show_inventory():
             st.write(f"PCS: {row['PCS']} | Delivered: {row['Delivery_PCS']} | ➖ Difference: {row['Difference in PCS']} | Rate: ₹{row['Rate']} | Total: ₹{row['Total']}")
             st.write(f"Matching: {row['Matching']}")
             if st.button(f"➕ Add Color", key=f"add_edit_row_{i}"):
-            if f"edit_rows_{i}" not in st.session_state:
-                st.session_state[f"edit_rows_{i}"] = []
-            st.session_state[f"edit_rows_{i}"].append(f"Color{len(st.session_state[f'edit_rows_{i}'])+1}")
-            st.rerun()
+    if f"edit_rows_{i}" not in st.session_state:
+        st.session_state[f"edit_rows_{i}"] = []
+    st.session_state[f"edit_rows_{i}"].append(f"Color{len(st.session_state[f'edit_rows_{i}'])+1}")
+    st.rerun()
 
         with st.form(f"edit_{i}"):
                 col1, col2, col3 = st.columns(3)
