@@ -164,7 +164,7 @@ with st.expander("🔎 Filter / Search"):
             st.markdown(get_csv_excel_download_links(df), unsafe_allow_html=True)
 total_pages = len(df) // ROWS_PER_PAGE + (1 if len(df) % ROWS_PER_PAGE > 0 else 0)
 page = st.number_input("Page", min_value=1, max_value=total_pages, step=1)
-        start = (page - 1) * ROWS_PER_PAGE
+    start = (page - 1) * ROWS_PER_PAGE
         end = start + ROWS_PER_PAGE
         sliced_df = df.iloc[start:end]
 
