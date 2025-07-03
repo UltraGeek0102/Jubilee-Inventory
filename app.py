@@ -120,6 +120,7 @@ def show_add_form():
         diamond = col3.text_input("Diamond")
         matching_dict = {}
         with st.expander("Matching Table"):
+            st.markdown("<b>Enter color and PCS. Total updates live below.</b>", unsafe_allow_html=True)
             colm1, colm2 = st.columns([2, 1])
             for color in ["Red", "Blue", "Green", "Yellow", "Black"]:
                 with colm1:
@@ -130,6 +131,10 @@ def show_add_form():
                     matching_dict[name] = qty
         matching = ", ".join(f"{k}:{v}" for k, v in matching_dict.items() if v > 0)
         pcs = sum(matching_dict.values())
+                st.write(f"🎯 Total PCS: {pcs}")
+                st.write(f"💰 Total Value: ₹{pcs * rate:.2f}")
+                st.write(f"🎯 Total PCS: {pcs}")
+        st.write(f"🎯 Total PCS: {pcs}")
         delivery = st.number_input("Delivery PCS", min_value=0, format="%d")
         a1, a2, a3 = st.columns(3)
         assignee = a1.text_input("Assignee")
@@ -254,8 +259,9 @@ def show_inventory():
                             matching_dict[color] = pcs_val
                 matching = ", ".join(f"{k}:{v}" for k, v in matching_dict.items() if v > 0)
                 pcs = sum(matching_dict.values())
-                    pcs = sum(int(i.split(":")[1]) for i in matching.split(",") if ":" in i)
-                except:
+                st.write(f"🎯 Total PCS: {pcs}")
+                st.write(f"💰 Total Value: ₹{pcs * rate:.2f}")
+                
                     pcs = 0
                 delivery = st.number_input("Delivery PCS", value=row["Delivery_PCS"], min_value=0)
                 a1, a2, a3 = st.columns(3)
@@ -268,7 +274,9 @@ def show_inventory():
                     image_url = row["Image"]
                     if image:
                         image_url = upload_to_drive(image)
-                    new_row = [company, dno, matching, diamond, pcs, delivery, assignee, ptype, rate, pcs * rate, image_url, datetime.now().isoformat()]
+                    matching_str = ", ".join(f"{k}:{v}" for k, v in matching_dict.items() if v > 0)
+                    pcs = sum(matching_dict.values())
+                    new_row = [company, dno, matching_str, diamond, pcs, delivery, assignee, ptype, rate, pcs * rate, image_url, datetime.now().isoformat()]
                     sheet.delete_rows(row_num)
                     sheet.insert_row(new_row, row_num)
                     st.success("✅ Updated")
