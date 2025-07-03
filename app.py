@@ -1,4 +1,3 @@
-# jubilee_streamlit/app.py — Fixed + Enhanced Inventory Web App
 import streamlit as st
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
@@ -14,67 +13,7 @@ import io
 import altair as alt
 import uuid
 
-st.set_page_config(
-    page_title="Jubilee Inventory",
-    page_icon="https://raw.githubusercontent.com/ultrageek0102/Jubilee-Inventory/main/favicon.ico",
-    layout="wide"
-)
-
-# --- Logo + Favicon ---
-st.markdown("""
-    <style>
-        .logo-container {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 1rem;
-            margin-top: 1rem;
-            margin-bottom: 1rem;
-        }
-        .logo-container img {
-            height: 60px;
-        }
-        .logo-container h1 {
-            font-size: 2rem;
-            font-weight: 600;
-            color: white;
-        }
-    </style>
-    <div class="logo-container">
-        <img src="https://raw.githubusercontent.com/ultrageek0102/Jubilee-Inventory/main/logo.png" alt="logo">
-        <h1>JUBILEE TEXTILE PROCESSORS</h1>
-    </div>
-    <link rel="icon" href="https://raw.githubusercontent.com/ultrageek0102/Jubilee-Inventory/main/favicon.ico" type="image/x-icon">
-""", unsafe_allow_html=True)
-
-# --- Constants ---
-SCOPE = [
-    "https://spreadsheets.google.com/feeds",
-    "https://www.googleapis.com/auth/spreadsheets",
-    "https://www.googleapis.com/auth/drive.file",
-    "https://www.googleapis.com/auth/drive"
-]
-FALLBACK_IMAGE = "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0a/No-image-available.png/600px-No-image-available.png"
-ROWS_PER_PAGE = 50
-
-# --- Authentication ---
-if "PASSWORD" in st.secrets:
-    pw = st.text_input("🔐 Enter password to access:", type="password")
-    if pw != st.secrets["PASSWORD"]:
-        st.stop()
-
-try:
-    creds_dict = json.loads(st.secrets["GCP_CREDENTIALS"])
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, SCOPE)
-    client = gspread.authorize(creds)
-    spreadsheet = client.open("jubilee-inventory")
-    sheet = spreadsheet.sheet1
-    drive_service = build("drive", "v3", credentials=creds)
-except Exception as e:
-    st.error(f"❌ Google API error: {e}")
-    st.stop()
-
-DRIVE_FOLDER_ID = st.secrets.get("DRIVE_FOLDER_ID")
+# ... [existing setup and credentials code assumed present] ...
 
 # --- Upload to Drive ---
 def upload_to_drive(uploaded_file):
