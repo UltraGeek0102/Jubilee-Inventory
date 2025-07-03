@@ -117,6 +117,8 @@ def show_add_form():
     if "matching_rows" not in st.session_state:
         st.session_state.matching_rows = ["Red", "Blue", "Green", "Yellow", "Black"]
 
+    
+
     with st.form("add_form"):
         col1, col2, col3 = st.columns(3)
         company = col1.text_input("Company")
@@ -136,8 +138,7 @@ def show_add_form():
                     qty = st.number_input(f"PCS", min_value=0, step=1, key=f"qty_{color}")
                 if name:
                     matching_dict[name] = qty
-            if st.button("➕ Add New Matching Row"):
-                st.session_state.matching_rows.append(f"Color{len(st.session_state.matching_rows)+1}")
+            
         matching = ", ".join(f"{k}:{v}" for k, v in matching_dict.items() if v > 0)
         pcs = sum(matching_dict.values())
         st.write(f"🎯 Total PCS: {pcs}")
@@ -303,3 +304,4 @@ def show_inventory():
 
 show_add_form()
 show_inventory()
+
