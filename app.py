@@ -172,8 +172,8 @@ def export_matching_table(df):
     matching_data = []
     for _, row in df.iterrows():
         for pair in row["Matching"].split(","):
-        if ":" in pair and len(pair.split(":")) == 2:
-            color, qty = pair.strip().split(":")
+            if ":" in pair and len(pair.split(":")) == 2:
+                color, qty = pair.strip().split(":")
                 matching_data.append({
                     "Company": row["Company"],
                     "D.NO": row["D.NO"],
