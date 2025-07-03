@@ -93,6 +93,7 @@ def upload_to_drive(uploaded_file):
         return FALLBACK_IMAGE
 
 def get_csv_excel_download_links(df):
+    csv = df["Difference in PCS"] = df["PCS"] - df["Delivery_PCS"]
     csv = df.to_csv(index=False).encode('utf-8')
     excel_buffer = io.BytesIO()
     with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer:
@@ -122,13 +123,18 @@ def show_add_form():
         with st.expander("Matching Table"):
             st.markdown("<b>Enter color and PCS. Total updates live below.</b>", unsafe_allow_html=True)
             colm1, colm2 = st.columns([2, 1])
-            for color in ["Red", "Blue", "Green", "Yellow", "Black"]:
+            if "matching_rows" not in st.session_state:
+                st.session_state.matching_rows = ["Red", "Blue", "Green", "Yellow", "Black"]
+            remove_keys = []
+            for color in st.session_state.matching_rows:
                 with colm1:
                     name = st.text_input(f"Color ({color})", value=color, key=f"color_{color}")
                 with colm2:
                     qty = st.number_input(f"PCS", min_value=0, step=1, key=f"qty_{color}")
                 if name:
                     matching_dict[name] = qty
+            if st.button("➕ Add New Matching Row"):
+                st.session_state.matching_rows.append(f"Color{len(st.session_state.matching_rows)+1}")
         matching = ", ".join(f"{k}:{v}" for k, v in matching_dict.items() if v > 0)
         pcs = sum(matching_dict.values())
         st.write(f"🎯 Total PCS: {pcs}")
@@ -183,12 +189,13 @@ def export_matching_table(df):
 
 def show_inventory():
     st.subheader("📦 Inventory")
-    export_matching_table(df)
     df = pd.DataFrame(sheet.get_all_records())
+    export_matching_table(df)
     df["SheetRowNum"] = df.index + 2
     df["PCS"] = pd.to_numeric(df["PCS"], errors="coerce").fillna(0).astype(int)
     df["Delivery_PCS"] = pd.to_numeric(df["Delivery_PCS"], errors="coerce").fillna(0).astype(int)
     df["Pending"] = df["PCS"] - df["Delivery_PCS"]
+    df["Difference in PCS"] = df["PCS"] - df["Delivery_PCS"]
 
     show_dashboard(df)
 
@@ -236,7 +243,7 @@ def show_inventory():
                 )
             st.markdown(f'<a href="{row["Image"] or FALLBACK_IMAGE}" target="_blank"><img src="{row["Image"] or FALLBACK_IMAGE}" width="200"></a>', unsafe_allow_html=True)
             st.write(f"Diamond: {row['Diamond']} | Type: {row['Type']} | Assignee: {row['Assignee']}")
-            st.write(f"PCS: {row['PCS']} | Delivered: {row['Delivery_PCS']} | Rate: ₹{row['Rate']} | Total: ₹{row['Total']}")
+            st.write(f"PCS: {row['PCS']} | Delivered: {row['Delivery_PCS']} | ➖ Difference: {row['Difference in PCS']} | Rate: ₹{row['Rate']} | Total: ₹{row['Total']}")
             st.write(f"Matching: {row['Matching']}")
             with st.form(f"edit_{i}"):
                 col1, col2, col3 = st.columns(3)
@@ -245,10 +252,19 @@ def show_inventory():
                 diamond = col3.text_input("Diamond", value=row["Diamond"])
                 matching_dict = {}
                 with st.expander("Matching Table", expanded=False):
+                    if f"edit_rows_{i}" not in st.session_state:
+                        st.session_state[f"edit_rows_{i}"] = [s.split(":" )[0] for s in row["Matching"].split(",") if ":" in s]
                     colm1, colm2 = st.columns([2, 1])
-                    preset_pairs = [s.strip() for s in row["Matching"].split(",") if ":" in s]
-                    for item in preset_pairs:
-                        name, qty = item.split(":")
+                    for color in st.session_state[f"edit_rows_{i}"]:
+                        val = next((int(s.split(":" )[1]) for s in row["Matching"].split(",") if s.split(":" )[0] == color), 0)
+                        with colm1:
+                            name = st.text_input(f"Color ({color})", value=color, key=f"edit_color_{i}_{color}")
+                        with colm2:
+                            qty = st.number_input(f"PCS", value=val, min_value=0, step=1, key=f"edit_qty_{i}_{color}")
+                        if name:
+                            matching_dict[name] = qty
+                    if st.button(f"➕ Add New Matching Row", key=f"add_edit_row_{i}"):
+                        st.session_state[f"edit_rows_{i}"].append(f"Color{len(st.session_state[f"edit_rows_{i}"])+1}")
                         with colm1:
                             color = st.text_input(f"Color ({name})", value=name, key=f"edit_color_{i}_{name}")
                         with colm2:
