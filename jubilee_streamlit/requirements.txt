@@ -1,8 +1,10 @@
+streamlit
+pandas
 gspread
 google-auth
-Pillow
-pandas
-streamlit
-openpyxl
+oauth2client
+google-api-python-client
 thefuzz
-
+Pillow
+altair
+openpyxl
