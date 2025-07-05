@@ -1,24 +1,18 @@
-# jubilee_streamlit_app.py
+# jubilee_streamlit_app.py (Safe & Improved)
 import streamlit as st
 import pandas as pd
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+import json
+from google.oauth2.service_account import Credentials
 from PIL import Image
 import io
 import base64
-import uuid
 
-# Google Sheets config using Streamlit secrets
-def get_gspread_client():
-    scope = [
-        "https://spreadsheets.google.com/feeds",
-        "https://www.googleapis.com/auth/drive"
-    ]
-    creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scope)
-    return gspread.authorize(creds)
-
+# Google Sheets config using st.secrets
 SHEET_NAME = "JubileeInventory"
-client = get_gspread_client()
+creds_dict = st.secrets["gcp_service_account"]
+creds = Credentials.from_service_account_info(creds_dict)
+client = gspread.authorize(creds)
 sheet = client.open(SHEET_NAME).sheet1
 
 # App Config
@@ -35,10 +29,13 @@ def save_data(df):
     sheet.update([df.columns.tolist()] + df.values.tolist())
 
 def image_to_base64(image_file):
-    img = Image.open(image_file)
-    buf = io.BytesIO()
-    img.save(buf, format="PNG")
-    return base64.b64encode(buf.getvalue()).decode()
+    try:
+        img = Image.open(image_file)
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        return base64.b64encode(buf.getvalue()).decode()
+    except Exception:
+        return ""
 
 def base64_to_image(base64_str):
     return Image.open(io.BytesIO(base64.b64decode(base64_str)))
@@ -46,10 +43,19 @@ def base64_to_image(base64_str):
 # Load inventory
 df = load_data()
 
+# Ensure required columns exist
+required_columns = ["COMPANY NAME", "D.NO.", "MATCHING", "Diamond", "PCS", "DELIVERY PCS", "Assignee", "Type", "Rate", "Total", "Image"]
+if df.empty:
+    df = pd.DataFrame(columns=required_columns)
+else:
+    for col in required_columns:
+        if col not in df.columns:
+            df[col] = ""
+
 # Sidebar filters
 with st.sidebar:
     st.header("🔍 Filter")
-    type_filter = st.selectbox("Type", ["All"] + df["Type"].unique().tolist()) if not df.empty else "All"
+    type_filter = st.selectbox("Type", ["All"] + df["Type"].dropna().unique().tolist()) if not df.empty else "All"
     search = st.text_input("Search D.NO. or Company")
     st.markdown("---")
     export_format = st.selectbox("Export Format", ["CSV", "Excel"])
@@ -59,8 +65,8 @@ with st.sidebar:
             filtered = filtered[filtered["Type"] == type_filter]
         if search:
             filtered = filtered[
-                filtered["D.NO."].str.contains(search, case=False) |
-                filtered["COMPANY NAME"].str.contains(search, case=False)
+                filtered["D.NO."].str.contains(search, case=False, na=False) |
+                filtered["COMPANY NAME"].str.contains(search, case=False, na=False)
             ]
         if export_format == "CSV":
             st.download_button("Download CSV", filtered.to_csv(index=False).encode(), "jubilee_inventory.csv")
@@ -116,6 +122,10 @@ with st.expander("+ Add / Edit Product"):
 
         submitted = st.form_submit_button("Save Product")
         if submitted:
+            if form_mode == "Add New" and dno in df["D.NO."].values:
+                st.error("D.NO. already exists. Use 'Edit Existing' to update.")
+                st.stop()
+
             new_data = {
                 "COMPANY NAME": company,
                 "D.NO.": dno,
@@ -131,7 +141,10 @@ with st.expander("+ Add / Edit Product"):
             }
 
             if form_mode == "Edit Existing" and selected_dno:
-                df.loc[df["D.NO."] == selected_dno] = new_data
+                index = df[df["D.NO."] == selected_dno].index
+                if not index.empty:
+                    for key in new_data:
+                        df.at[index[0], key] = new_data[key]
                 st.success(f"Updated product: {selected_dno}")
             else:
                 df = pd.concat([df, pd.DataFrame([new_data])], ignore_index=True)
@@ -144,9 +157,10 @@ st.subheader("🔊 Delete Products")
 if not df.empty:
     selected = st.multiselect("Select D.NO. to delete", df["D.NO."].unique())
     if st.button("Delete Selected") and selected:
-        df = df[~df["D.NO."].isin(selected)]
-        save_data(df)
-        st.success(f"Deleted: {', '.join(selected)}")
+        if st.confirm("Are you sure you want to delete the selected entries?"):
+            df = df[~df["D.NO."].isin(selected)]
+            save_data(df)
+            st.success(f"Deleted: {', '.join(selected)}")
 else:
     st.info("No products available.")
 
@@ -156,5 +170,8 @@ st.subheader("🖼️ Preview Images")
 for idx, row in filtered_df.iterrows():
     if row["Image"]:
         st.markdown(f"**{row['D.NO.']} - {row['COMPANY NAME']}**")
-        st.image(base64_to_image(row["Image"]), width=300)
+        try:
+            st.image(base64_to_image(row["Image"]), width=300)
+        except Exception:
+            st.warning(f"Could not load image for {row['D.NO.']}")
         st.markdown("---")
