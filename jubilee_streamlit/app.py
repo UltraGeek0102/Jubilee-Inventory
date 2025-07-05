@@ -1,4 +1,4 @@
-# jubilee_streamlit_app.py (Phase 3: Google Drive Image Upload)
+# jubilee_streamlit_app.py (Final Fixes - Submit Button & Validation)
 import streamlit as st
 import pandas as pd
 import gspread
@@ -21,7 +21,7 @@ creds = Credentials.from_service_account_info(creds_dict, scopes=[
     "https://www.googleapis.com/auth/drive",
     "https://www.googleapis.com/auth/spreadsheets"])
 client = gspread.authorize(creds)
-sheet = client.open("jubilee-inventory").sheet1
+sheet = client.open(SHEET_NAME).sheet1
 drive_service = build("drive", "v3", credentials=creds)
 
 # App Config
@@ -122,11 +122,6 @@ with tab1:
                 type_val = st.selectbox("Type", ["WITH LACE", "WITHOUT LACE"])
                 rate = st.number_input("Rate", min_value=0.0)
                 delivery_pcs = st.number_input("Delivery PCS", min_value=0)
-            if form_mode == "Add New" and dno in df["D.NO."].values:
-                st.error("D.NO. already exists. Use 'Edit Existing' to update.")
-                st.stop()
-            if not company.strip() or not dno.strip():
-                st.warning("Company Name and D.NO. are required.")
 
             st.markdown("### Matching Colors")
             match_entries = []
@@ -143,68 +138,38 @@ with tab1:
             image_file = st.file_uploader("Upload Image", type=["jpg", "jpeg", "png"])
             image_url = upload_image_to_drive(image_file) if image_file else ""
 
-            if st.form_submit_button("Save Product"):
-                now = datetime.now().isoformat()
-                new_data = {
-                    "COMPANY NAME": company,
-                    "D.NO.": dno,
-                    "MATCHING": ", ".join(match_entries),
-                    "Diamond": diamond,
-                    "PCS": total_pcs,
-                    "DELIVERY PCS": delivery_pcs,
-                    "Assignee": assignee,
-                    "Type": type_val,
-                    "Rate": rate,
-                    "Total": rate * total_pcs,
-                    "Image": image_url,
-                    "Updated At": now
-                }
-                if form_mode == "Edit Existing" and selected_dno:
-                    index = df[df["D.NO."] == selected_dno].index
-                    if not index.empty:
-                        for key in new_data:
-                            df.at[index[0], key] = new_data[key]
-                        st.success(f"Updated product: {selected_dno}")
+            submitted = st.form_submit_button("Save Product")
+            if submitted:
+                if not company.strip() or not dno.strip():
+                    st.warning("Company Name and D.NO. are required.")
+                elif form_mode == "Add New" and dno in df["D.NO."].values:
+                    st.error("D.NO. already exists. Use 'Edit Existing' to update.")
                 else:
-                    new_data["Created At"] = now
-                    df = pd.concat([df, pd.DataFrame([new_data])], ignore_index=True)
-                    st.success(f"Added new product: {dno}")
-                save_data(df)
-
-    st.markdown("---")
-    st.subheader("🔊 Delete Products")
-    if not df.empty:
-        selected = st.multiselect("Select D.NO. to delete", df["D.NO."].unique())
-        if st.button("Delete Selected") and selected:
-            df = df[~df["D.NO."].isin(selected)]
-            save_data(df)
-            st.success(f"Deleted: {', '.join(selected)}")
-    else:
-        st.info("No products available.")
-
-    st.markdown("---")
-    st.subheader("🖼️ Preview Images")
-    for idx, row in filtered_df.iterrows():
-        if row["Image"]:
-            st.markdown(f"**{row['D.NO.']} - {row['COMPANY NAME']}**")
-            st.image(row["Image"], width=300)
-            st.markdown("---")
-
-# ========== Tab 2: Analytics ==========
-with tab2:
-    st.title("📊 Inventory Analytics")
-    if not df.empty:
-        type_chart = alt.Chart(df).mark_bar().encode(
-            x=alt.X('Type:N', title='Saree Type'),
-            y=alt.Y('sum(PCS):Q', title='Total PCS'),
-            color='Type'
-        ).properties(title="Total PCS by Type")
-
-        rate_chart = alt.Chart(df).mark_circle(size=80).encode(
-            x='Rate', y='PCS', color='Type', tooltip=['D.NO.', 'COMPANY NAME', 'Rate', 'PCS']
-        ).properties(title="Rate vs PCS")
-
-        st.altair_chart(type_chart, use_container_width=True)
-        st.altair_chart(rate_chart, use_container_width=True)
-    else:
-        st.info("No data available for analytics.")
+                    now = datetime.now().isoformat()
+                    new_data = {
+                        "COMPANY NAME": company,
+                        "D.NO.": dno,
+                        "MATCHING": ", ".join(match_entries),
+                        "Diamond": diamond,
+                        "PCS": total_pcs,
+                        "DELIVERY PCS": delivery_pcs,
+                        "Assignee": assignee,
+                        "Type": type_val,
+                        "Rate": rate,
+                        "Total": rate * total_pcs,
+                        "Image": image_url,
+                        "Updated At": now
+                    }
+                    if form_mode == "Edit Existing" and selected_dno:
+                        index = df[df["D.NO."] == selected_dno].index
+                        if not index.empty:
+                            if not image_url:
+                                new_data["Image"] = df.at[index[0], "Image"]
+                            for key in new_data:
+                                df.at[index[0], key] = new_data[key]
+                            st.success(f"Updated product: {selected_dno}")
+                    else:
+                        new_data["Created At"] = now
+                        df = pd.concat([df, pd.DataFrame([new_data])], ignore_index=True)
+                        st.success(f"Added new product: {dno}")
+                    save_data(df)
