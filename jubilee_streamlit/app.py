@@ -127,12 +127,21 @@ with tab1:
 # [...existing import and setup code remains unchanged...]
 
            
+           # jubilee_streamlit_app.py (Fix: Make Total PCS live-update by forcing rerun)
+# [...existing import and setup code remains unchanged...]
+
             # MATCHING table input - OUTSIDE form so values update live
             st.markdown("### MATCHING (Color + PCS)")
             if "match_data" not in st.session_state:
                 st.session_state.match_data = [{"Color": "", "PCS": 0}]
 
-            st.session_state.match_data = st.data_editor(
+            col_left, col_right = st.columns([3, 1])
+            with col_right:
+                if st.button("Clear Table"):
+                    st.session_state.match_data = [{"Color": "", "PCS": 0}]
+                    st.experimental_rerun()
+
+            updated_match_df = st.data_editor(
                 st.session_state.match_data,
                 num_rows="dynamic",
                 use_container_width=True,
@@ -142,15 +151,25 @@ with tab1:
                 }
             )
 
-            # Live Total PCS preview
+            # Update session only if changed
+            if updated_match_df != st.session_state.match_data:
+                st.session_state.match_data = updated_match_df
+                st.experimental_rerun()
+
+            # Live Total PCS preview and Matching preview
             total_pcs_preview = 0
+            match_preview = []
             for row in st.session_state.match_data:
                 try:
-                    pcs_val = int(row.get("PCS") or 0)
-                    total_pcs_preview += pcs_val
+                    pcs_val = int(float(row.get("PCS") or 0))
+                    color_val = str(row.get("Color") or "").strip()
+                    if color_val:
+                        match_preview.append(f"{color_val}:{pcs_val}")
+                        total_pcs_preview += pcs_val
                 except:
                     continue
             st.markdown(f"**Total PCS:** {total_pcs_preview}")
+            st.caption("MATCHING Preview: " + ", ".join(match_preview))
 
             # Product Form submission
             image_file = st.file_uploader("Upload Image", type=["jpg", "jpeg", "png"])
@@ -169,7 +188,7 @@ with tab1:
                     for row in st.session_state.match_data:
                         color = str(row.get("Color", "")).strip()
                         try:
-                            pcs = int(row.get("PCS") or 0)
+                            pcs = int(float(row.get("PCS") or 0))
                         except:
                             pcs = 0
                         if color:
@@ -203,6 +222,7 @@ with tab1:
                         df = pd.concat([df, pd.DataFrame([new_data])], ignore_index=True)
                         st.success(f"Added new product: {dno}")
                     save_data(df)
+
 
 
     st.markdown("---")
