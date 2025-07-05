@@ -123,17 +123,29 @@ with tab1:
                 rate = st.number_input("Rate", min_value=0.0)
                 delivery_pcs = st.number_input("Delivery PCS", min_value=0)
 
-            st.markdown("### Matching Colors")
+            # jubilee_streamlit_app.py (Matching table using st.data_editor)
+# [...existing import and setup code remains unchanged...]
+
+            # MATCHING table input
+            st.markdown("### MATCHING (Color + PCS)")
+            initial_data = st.session_state.get("match_data", [{"Color": "", "PCS": 0}])
+            match_df = st.data_editor(
+                initial_data,
+                num_rows="dynamic",
+                use_container_width=True,
+                key="match_editor"
+            )
+
             match_entries = []
             total_pcs = 0
-            num_colors = st.number_input("Number of Colors", min_value=0, max_value=20, value=0)
-            for i in range(num_colors):
-                c1, c2 = st.columns([3, 1])
-                color = c1.text_input(f"Color {i+1}", key=f"color_{i}")
-                pcs = c2.number_input(f"PCS {i+1}", min_value=0, key=f"pcs_{i}")
+            for row in match_df:
+                color = row.get("Color", "").strip()
+                pcs = row.get("PCS", 0)
                 if color:
                     match_entries.append(f"{color}:{pcs}")
-                    total_pcs += pcs
+                    total_pcs += int(pcs)
+
+            st.markdown(f"**Total PCS:** {total_pcs}")
 
             image_file = st.file_uploader("Upload Image", type=["jpg", "jpeg", "png"])
             image_url = upload_image_to_drive(image_file) if image_file else ""
@@ -173,6 +185,8 @@ with tab1:
                         df = pd.concat([df, pd.DataFrame([new_data])], ignore_index=True)
                         st.success(f"Added new product: {dno}")
                     save_data(df)
+                    st.session_state["match_data"] = match_df
+
 
     st.markdown("---")
     st.subheader("🗑️ Delete Products")
