@@ -21,7 +21,7 @@ creds = Credentials.from_service_account_info(creds_dict, scopes=[
     "https://www.googleapis.com/auth/drive",
     "https://www.googleapis.com/auth/spreadsheets"])
 client = gspread.authorize(creds)
-sheet = client.open(SHEET_NAME).sheet1
+sheet = client.open("jubilee-inventory").sheet1
 drive_service = build("drive", "v3", credentials=creds)
 
 # App Config
