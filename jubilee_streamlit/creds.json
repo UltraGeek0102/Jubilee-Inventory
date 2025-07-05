@@ -2,7 +2,7 @@
   "type": "service_account",
   "project_id": "jubilee-inventory",
   "private_key_id": "ddc0ee7b3ae46ac00f711ddd88c1f5769ec4ea09",
-  "private_key": "-----BEGIN PRIVATE KEY-----\\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQDPL/Iv4kBb0nQ3\\nibqayLaj0j/CpYKyqdpbNpm5vHjwcoxVJE1ktTLg3GwcieUiZd5+K20K+EK9DDqD\\n9AStGOcu6EFwzw7sE8enWkTlUxqfiljV8eLRPYrUOt22vtVPK1Ww/I3eGL7M5QTm\\n3yEpWoWtW5upas3Zhjm3LfvO3FHpPCj7kIgviHEX8rfcaJKhQKRM3MSXvnYORTVh\\nNAIppC5ERrxFgGZujbJxqCLhWr7Irw4vfEN9RLDkGa0PDyGbJnE2bjtgfngFtH8c\\nph6Oq8WLlYEd2J3NBFi5Gp8cTYEhQpISMnie9eU0Z8jM2kGtyxTWuNsxKKU/j1EC\\nBOLw8XbXAgMBAAECggEAHduxBrQ6cNaBfRzSJvWqAdiOQRo3yFEGG4MLiw2ITaPp\\nvr4T5owzyt1j5IZS3oQubkxf0zw351ADLCUBz4L5Ph9RNFVYDIRFOkRIuCvOeGjS\\n/fIgApDgmE6WHnyd97eCX+vlng4+4P8C7SqsIsOIOZWBd1w2/OmFGSBSsQW7SuXo_
+  "private_key": 
 
   "client_email": "streamlit-sheet-access@jubilee-inventory.iam.gserviceaccount.com",
   "client_id": "103062552519383913579",
