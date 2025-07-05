@@ -7,16 +7,18 @@ from PIL import Image
 import io
 import base64
 import uuid
-import json
 
-# Google Sheets config
+# Google Sheets config using Streamlit secrets
+def get_gspread_client():
+    scope = [
+        "https://spreadsheets.google.com/feeds",
+        "https://www.googleapis.com/auth/drive"
+    ]
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scope)
+    return gspread.authorize(creds)
+
 SHEET_NAME = "JubileeInventory"
-CREDENTIALS_FILE = "creds.json"  # Replace with your credentials
-
-# Setup Google Sheets
-scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scope)
-client = gspread.authorize(creds)
+client = get_gspread_client()
 sheet = client.open(SHEET_NAME).sheet1
 
 # App Config
