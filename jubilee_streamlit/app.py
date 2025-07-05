@@ -138,7 +138,7 @@ with tab1:
             with col_delete:
                 delete_clicked = st.form_submit_button("Delete Product")
 
-                                    if delete_clicked:
+            if delete_clicked:
                 if form_mode == "Edit Existing" and selected_dno:
                     df = df[df["D.NO."] != selected_dno]
                     save_data(df)
