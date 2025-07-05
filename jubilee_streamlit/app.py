@@ -75,6 +75,11 @@ else:
 
 # (BEGINNING OF FIXED MAIN BODY)
 
+# jubilee_streamlit_app.py (Final Fixes - Submit Button & Validation)
+# [... keep all existing import and setup code unchanged ...]
+
+# (BEGINNING OF FIXED MAIN BODY)
+
 # === Tab 1 Layout ===
 with tab1:
     st.title("Jubilee Inventory Management System")
@@ -202,9 +207,9 @@ with tab1:
             if updated_match_df != st.session_state.match_data:
                 st.session_state.match_data = updated_match_df
 
-            if st.form_submit_button("Clear Table"):
+            clear_match = st.checkbox("Clear Matching Table")
+            if clear_match:
                 st.session_state.match_data = [{"Color": "", "PCS": 0}]
-                st.experimental_rerun()
 
             total_pcs_preview = 0
             match_preview = []
@@ -219,6 +224,7 @@ with tab1:
                     continue
             st.markdown(f"**Total PCS:** {total_pcs_preview}")
             st.caption("MATCHING Preview: " + ", ".join(match_preview))
+
 
 
 
