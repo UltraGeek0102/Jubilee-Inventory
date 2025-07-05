@@ -65,7 +65,12 @@ else:
         if col not in df.columns:
             df[col] = ""
 
-# ========== Tab 1: Inventory Dashboard ==========
+# jubilee_streamlit_app.py (Final Fixes - Submit Button & Validation)
+# [... keep all existing import and setup code unchanged ...]
+
+# (BEGINNING OF FIXED MAIN BODY)
+
+# === Tab 1 Layout ===
 with tab1:
     st.title("Jubilee Inventory Management System")
     with st.sidebar:
@@ -123,97 +128,30 @@ with tab1:
                 rate = st.number_input("Rate", min_value=0.0)
                 delivery_pcs = st.number_input("Delivery PCS", min_value=0)
 
-# === MOVE CLEAR BUTTON OUTSIDE FORM ===
-    st.markdown("### MATCHING (Color + PCS)")
-    if "match_data" not in st.session_state:
-        st.session_state.match_data = [{"Color": "", "PCS": 0}]
-
-    updated_match_df = st.data_editor(
-        st.session_state.match_data,
-        num_rows="dynamic",
-        use_container_width=True,
-        key="match_editor",
-        column_config={
-            "PCS": st.column_config.NumberColumn("PCS", min_value=0)
-        }
-    )
-
-    # Handle Clear button outside form
-    if st.button("Clear Table"):
-        st.session_state.match_data = [{"Color": "", "PCS": 0}]
-        st.experimental_rerun()
-
-    if updated_match_df != st.session_state.match_data:
-        st.session_state.match_data = updated_match_df
-        st.experimental_rerun()
-
-    # Live PCS + preview (keep inside form)
-    total_pcs_preview = 0
-    match_preview = []
-    for row in st.session_state.match_data:
-        try:
-            pcs_val = int(float(row.get("PCS") or 0))
-            color_val = str(row.get("Color") or "").strip()
-            if color_val:
-                match_preview.append(f"{color_val}:{pcs_val}")
-                total_pcs_preview += pcs_val
-        except:
-            continue
-    st.markdown(f"**Total PCS:** {total_pcs_preview}")
-    st.caption("MATCHING Preview: " + ", ".join(match_preview))
-
-    # Product Form submission
-    image_file = st.file_uploader("Upload Image", type=["jpg", "jpeg", "png"])
-    image_url = upload_image_to_drive(image_file) if image_file else ""
-
-    submitted = st.form_submit_button("Save Product")
-                    st.session_state.match_data = [{"Color": "", "PCS": 0}]
-                    st.experimental_rerun()
-
-            # Update session only if changed
-            if updated_match_df != st.session_state.match_data:
-                st.session_state.match_data = updated_match_df
-                st.experimental_rerun()
-
-            # Live Total PCS preview and Matching preview
-            total_pcs_preview = 0
-            match_preview = []
-            for row in st.session_state.match_data:
-                try:
-                    pcs_val = int(float(row.get("PCS") or 0))
-                    color_val = str(row.get("Color") or "").strip()
-                    if color_val:
-                        match_preview.append(f"{color_val}:{pcs_val}")
-                        total_pcs_preview += pcs_val
-                except:
-                    continue
-            st.markdown(f"**Total PCS:** {total_pcs_preview}")
-            st.caption("MATCHING Preview: " + ", ".join(match_preview))
-
-            # Product Form submission
             image_file = st.file_uploader("Upload Image", type=["jpg", "jpeg", "png"])
             image_url = upload_image_to_drive(image_file) if image_file else ""
 
             submitted = st.form_submit_button("Save Product")
+
             if submitted:
+                now = datetime.now().isoformat()
+                match_entries = []
+                total_pcs = 0
+                for row in st.session_state.match_data:
+                    color = str(row.get("Color", "")).strip()
+                    try:
+                        pcs = int(float(row.get("PCS") or 0))
+                    except:
+                        pcs = 0
+                    if color:
+                        match_entries.append(f"{color}:{pcs}")
+                        total_pcs += pcs
+
                 if not company.strip() or not dno.strip():
                     st.warning("Company Name and D.NO. are required.")
                 elif form_mode == "Add New" and dno in df["D.NO."].values:
                     st.error("D.NO. already exists. Use 'Edit Existing' to update.")
                 else:
-                    now = datetime.now().isoformat()
-                    match_entries = []
-                    total_pcs = 0
-                    for row in st.session_state.match_data:
-                        color = str(row.get("Color", "")).strip()
-                        try:
-                            pcs = int(float(row.get("PCS") or 0))
-                        except:
-                            pcs = 0
-                        if color:
-                            match_entries.append(f"{color}:{pcs}")
-                            total_pcs += pcs
-
                     new_data = {
                         "COMPANY NAME": company,
                         "D.NO.": dno,
@@ -241,6 +179,44 @@ with tab1:
                         df = pd.concat([df, pd.DataFrame([new_data])], ignore_index=True)
                         st.success(f"Added new product: {dno}")
                     save_data(df)
+
+    # MATCHING UI (placed outside form)
+    st.markdown("### MATCHING (Color + PCS)")
+    if "match_data" not in st.session_state:
+        st.session_state.match_data = [{"Color": "", "PCS": 0}]
+
+    updated_match_df = st.data_editor(
+        st.session_state.match_data,
+        num_rows="dynamic",
+        use_container_width=True,
+        key="match_editor",
+        column_config={
+            "PCS": st.column_config.NumberColumn("PCS", min_value=0)
+        }
+    )
+
+    if st.button("Clear Table"):
+        st.session_state.match_data = [{"Color": "", "PCS": 0}]
+        st.experimental_rerun()
+
+    if updated_match_df != st.session_state.match_data:
+        st.session_state.match_data = updated_match_df
+        st.experimental_rerun()
+
+    total_pcs_preview = 0
+    match_preview = []
+    for row in st.session_state.match_data:
+        try:
+            pcs_val = int(float(row.get("PCS") or 0))
+            color_val = str(row.get("Color") or "").strip()
+            if color_val:
+                match_preview.append(f"{color_val}:{pcs_val}")
+                total_pcs_preview += pcs_val
+        except:
+            continue
+    st.markdown(f"**Total PCS:** {total_pcs_preview}")
+    st.caption("MATCHING Preview: " + ", ".join(match_preview))
+
 
 
 
