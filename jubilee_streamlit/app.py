@@ -70,21 +70,6 @@ else:
 
 # (BEGINNING OF FIXED MAIN BODY)
 
-# jubilee_streamlit_app.py (Final Fixes - Submit Button & Validation)
-# [... keep all existing import and setup code unchanged ...]
-
-# (BEGINNING OF FIXED MAIN BODY)
-
-# jubilee_streamlit_app.py (Final Fixes - Submit Button & Validation)
-# [... keep all existing import and setup code unchanged ...]
-
-# (BEGINNING OF FIXED MAIN BODY)
-
-# jubilee_streamlit_app.py (Final Fixes - Submit Button & Validation)
-# [... keep all existing import and setup code unchanged ...]
-
-# (BEGINNING OF FIXED MAIN BODY)
-
 # === Tab 1 Layout ===
 with tab1:
     st.title("Jubilee Inventory Management System")
@@ -147,13 +132,13 @@ with tab1:
             image_file = st.file_uploader("Upload Image", type=["jpg", "jpeg", "png"])
             image_url = upload_image_to_drive(image_file) if image_file else ""
 
-                        col_save, col_delete = st.columns([1, 1])
+            col_save, col_delete = st.columns([1, 1])
             with col_save:
                 submitted = st.form_submit_button("Save Product")
             with col_delete:
                 delete_clicked = st.form_submit_button("Delete Product")
 
-                        if delete_clicked:
+                                    if delete_clicked:
                 if form_mode == "Edit Existing" and selected_dno:
                     df = df[df["D.NO."] != selected_dno]
                     save_data(df)
