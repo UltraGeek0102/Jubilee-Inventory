@@ -70,6 +70,11 @@ else:
 
 # (BEGINNING OF FIXED MAIN BODY)
 
+# jubilee_streamlit_app.py (Final Fixes - Submit Button & Validation)
+# [... keep all existing import and setup code unchanged ...]
+
+# (BEGINNING OF FIXED MAIN BODY)
+
 # === Tab 1 Layout ===
 with tab1:
     st.title("Jubilee Inventory Management System")
@@ -180,42 +185,41 @@ with tab1:
                         st.success(f"Added new product: {dno}")
                     save_data(df)
 
-    # MATCHING UI (placed outside form)
-    st.markdown("### MATCHING (Color + PCS)")
-    if "match_data" not in st.session_state:
-        st.session_state.match_data = [{"Color": "", "PCS": 0}]
+                st.markdown("### MATCHING (Color + PCS)")
+            if "match_data" not in st.session_state:
+                st.session_state.match_data = [{"Color": "", "PCS": 0}]
 
-    updated_match_df = st.data_editor(
-        st.session_state.match_data,
-        num_rows="dynamic",
-        use_container_width=True,
-        key="match_editor",
-        column_config={
-            "PCS": st.column_config.NumberColumn("PCS", min_value=0)
-        }
-    )
+            updated_match_df = st.data_editor(
+                st.session_state.match_data,
+                num_rows="dynamic",
+                use_container_width=True,
+                key="match_editor",
+                column_config={
+                    "PCS": st.column_config.NumberColumn("PCS", min_value=0)
+                }
+            )
 
-    if st.button("Clear Table"):
-        st.session_state.match_data = [{"Color": "", "PCS": 0}]
-        st.experimental_rerun()
+            if updated_match_df != st.session_state.match_data:
+                st.session_state.match_data = updated_match_df
 
-    if updated_match_df != st.session_state.match_data:
-        st.session_state.match_data = updated_match_df
-        st.experimental_rerun()
+            if st.form_submit_button("Clear Table"):
+                st.session_state.match_data = [{"Color": "", "PCS": 0}]
+                st.experimental_rerun()
 
-    total_pcs_preview = 0
-    match_preview = []
-    for row in st.session_state.match_data:
-        try:
-            pcs_val = int(float(row.get("PCS") or 0))
-            color_val = str(row.get("Color") or "").strip()
-            if color_val:
-                match_preview.append(f"{color_val}:{pcs_val}")
-                total_pcs_preview += pcs_val
-        except:
-            continue
-    st.markdown(f"**Total PCS:** {total_pcs_preview}")
-    st.caption("MATCHING Preview: " + ", ".join(match_preview))
+            total_pcs_preview = 0
+            match_preview = []
+            for row in st.session_state.match_data:
+                try:
+                    pcs_val = int(float(row.get("PCS") or 0))
+                    color_val = str(row.get("Color") or "").strip()
+                    if color_val:
+                        match_preview.append(f"{color_val}:{pcs_val}")
+                        total_pcs_preview += pcs_val
+                except:
+                    continue
+            st.markdown(f"**Total PCS:** {total_pcs_preview}")
+            st.caption("MATCHING Preview: " + ", ".join(match_preview))
+
 
 
 
