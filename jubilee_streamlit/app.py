@@ -10,7 +10,7 @@ import uuid
 
 # Google Sheets config
 SHEET_NAME = "JubileeInventory"
-CREDENTIALS_FILE = "your_service_account.json"  # Replace with your credentials
+CREDENTIALS_FILE = "creds.json"  # Replace with your credentials
 
 # Setup Google Sheets
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
