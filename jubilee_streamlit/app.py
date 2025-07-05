@@ -173,3 +173,18 @@ with tab1:
                         df = pd.concat([df, pd.DataFrame([new_data])], ignore_index=True)
                         st.success(f"Added new product: {dno}")
                     save_data(df)
+
+    st.markdown("---")
+    st.subheader("🗑️ Delete Products")
+    if not df.empty:
+        selected_to_delete = st.multiselect("Select D.NO. to delete", df["D.NO."].unique())
+        if st.button("Delete Selected"):
+            if selected_to_delete:
+                df = df[~df["D.NO."].isin(selected_to_delete)]
+                save_data(df)
+                st.success(f"Deleted product(s): {', '.join(selected_to_delete)}")
+            else:
+                st.info("No product selected for deletion.")
+    else:
+        st.info("No products available to delete.")
+
