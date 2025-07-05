@@ -126,6 +126,7 @@ with tab1:
             # jubilee_streamlit_app.py (Matching table using st.data_editor)
 # [...existing import and setup code remains unchanged...]
 
+           
             # MATCHING table input
             st.markdown("### MATCHING (Color + PCS)")
             initial_data = st.session_state.get("match_data", [{"Color": "", "PCS": 0}])
@@ -133,17 +134,24 @@ with tab1:
                 initial_data,
                 num_rows="dynamic",
                 use_container_width=True,
-                key="match_editor"
+                key="match_editor",
+                column_config={
+                    "PCS": st.column_config.NumberColumn("PCS", min_value=0)
+                }
             )
 
             match_entries = []
             total_pcs = 0
             for row in match_df:
-                color = row.get("Color", "").strip()
-                pcs = row.get("PCS", 0)
+                color = str(row.get("Color", "")).strip()
+                pcs_raw = row.get("PCS", 0)
+                try:
+                    pcs = int(pcs_raw) if pcs_raw not in ("", None) else 0
+                except:
+                    pcs = 0
                 if color:
                     match_entries.append(f"{color}:{pcs}")
-                    total_pcs += int(pcs)
+                    total_pcs += pcs
 
             st.markdown(f"**Total PCS:** {total_pcs}")
 
@@ -186,7 +194,6 @@ with tab1:
                         st.success(f"Added new product: {dno}")
                     save_data(df)
                     st.session_state["match_data"] = match_df
-
 
     st.markdown("---")
     st.subheader("🗑️ Delete Products")
