@@ -123,31 +123,50 @@ with tab1:
                 rate = st.number_input("Rate", min_value=0.0)
                 delivery_pcs = st.number_input("Delivery PCS", min_value=0)
 
-            # jubilee_streamlit_app.py (Matching table using st.data_editor)
-# [...existing import and setup code remains unchanged...]
+# === MOVE CLEAR BUTTON OUTSIDE FORM ===
+    st.markdown("### MATCHING (Color + PCS)")
+    if "match_data" not in st.session_state:
+        st.session_state.match_data = [{"Color": "", "PCS": 0}]
 
-           
-           # jubilee_streamlit_app.py (Fix: Make Total PCS live-update by forcing rerun)
-# [...existing import and setup code remains unchanged...]
+    updated_match_df = st.data_editor(
+        st.session_state.match_data,
+        num_rows="dynamic",
+        use_container_width=True,
+        key="match_editor",
+        column_config={
+            "PCS": st.column_config.NumberColumn("PCS", min_value=0)
+        }
+    )
 
-           # MATCHING table input - OUTSIDE form so values update live
-            st.markdown("### MATCHING (Color + PCS)")
-            if "match_data" not in st.session_state:
-                st.session_state.match_data = [{"Color": "", "PCS": 0}]
+    # Handle Clear button outside form
+    if st.button("Clear Table"):
+        st.session_state.match_data = [{"Color": "", "PCS": 0}]
+        st.experimental_rerun()
 
-            updated_match_df = st.data_editor(
-                st.session_state.match_data,
-                num_rows="dynamic",
-                use_container_width=True,
-                key="match_editor",
-                column_config={
-                    "PCS": st.column_config.NumberColumn("PCS", min_value=0)
-                }
-            )
+    if updated_match_df != st.session_state.match_data:
+        st.session_state.match_data = updated_match_df
+        st.experimental_rerun()
 
-            col_clear, col_preview = st.columns([1, 5])
-            with col_clear:
-                if st.button("Clear Table"):
+    # Live PCS + preview (keep inside form)
+    total_pcs_preview = 0
+    match_preview = []
+    for row in st.session_state.match_data:
+        try:
+            pcs_val = int(float(row.get("PCS") or 0))
+            color_val = str(row.get("Color") or "").strip()
+            if color_val:
+                match_preview.append(f"{color_val}:{pcs_val}")
+                total_pcs_preview += pcs_val
+        except:
+            continue
+    st.markdown(f"**Total PCS:** {total_pcs_preview}")
+    st.caption("MATCHING Preview: " + ", ".join(match_preview))
+
+    # Product Form submission
+    image_file = st.file_uploader("Upload Image", type=["jpg", "jpeg", "png"])
+    image_url = upload_image_to_drive(image_file) if image_file else ""
+
+    submitted = st.form_submit_button("Save Product")
                     st.session_state.match_data = [{"Color": "", "PCS": 0}]
                     st.experimental_rerun()
 
@@ -238,4 +257,3 @@ with tab1:
                 st.info("No product selected for deletion.")
     else:
         st.info("No products available to delete.")
-
