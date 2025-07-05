@@ -7,6 +7,7 @@ from PIL import Image
 import io
 import base64
 import uuid
+import json
 
 # Google Sheets config
 SHEET_NAME = "JubileeInventory"
@@ -14,7 +15,7 @@ CREDENTIALS_FILE = "creds.json"  # Replace with your credentials
 
 # Setup Google Sheets
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-creds = ServiceAccountCredentials.from_json_keyfile_name(CREDENTIALS_FILE, scope)
+creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scope)
 client = gspread.authorize(creds)
 sheet = client.open(SHEET_NAME).sheet1
 
