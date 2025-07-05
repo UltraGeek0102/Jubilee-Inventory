@@ -130,16 +130,10 @@ with tab1:
            # jubilee_streamlit_app.py (Fix: Make Total PCS live-update by forcing rerun)
 # [...existing import and setup code remains unchanged...]
 
-            # MATCHING table input - OUTSIDE form so values update live
+           # MATCHING table input - OUTSIDE form so values update live
             st.markdown("### MATCHING (Color + PCS)")
             if "match_data" not in st.session_state:
                 st.session_state.match_data = [{"Color": "", "PCS": 0}]
-
-            col_left, col_right = st.columns([3, 1])
-            with col_right:
-                if st.button("Clear Table"):
-                    st.session_state.match_data = [{"Color": "", "PCS": 0}]
-                    st.experimental_rerun()
 
             updated_match_df = st.data_editor(
                 st.session_state.match_data,
@@ -150,6 +144,12 @@ with tab1:
                     "PCS": st.column_config.NumberColumn("PCS", min_value=0)
                 }
             )
+
+            col_clear, col_preview = st.columns([1, 5])
+            with col_clear:
+                if st.button("Clear Table"):
+                    st.session_state.match_data = [{"Color": "", "PCS": 0}]
+                    st.experimental_rerun()
 
             # Update session only if changed
             if updated_match_df != st.session_state.match_data:
