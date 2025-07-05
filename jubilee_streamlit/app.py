@@ -127,11 +127,13 @@ with tab1:
 # [...existing import and setup code remains unchanged...]
 
            
-            # MATCHING table input
+            # MATCHING table input - OUTSIDE form so values update live
             st.markdown("### MATCHING (Color + PCS)")
-            initial_data = st.session_state.get("match_data", [{"Color": "", "PCS": 0}])
-            match_df = st.data_editor(
-                initial_data,
+            if "match_data" not in st.session_state:
+                st.session_state.match_data = [{"Color": "", "PCS": 0}]
+
+            st.session_state.match_data = st.data_editor(
+                st.session_state.match_data,
                 num_rows="dynamic",
                 use_container_width=True,
                 key="match_editor",
@@ -140,21 +142,17 @@ with tab1:
                 }
             )
 
-            match_entries = []
-            total_pcs = 0
-            for row in match_df:
-                color = str(row.get("Color", "")).strip()
-                pcs_raw = row.get("PCS", 0)
+            # Live Total PCS preview
+            total_pcs_preview = 0
+            for row in st.session_state.match_data:
                 try:
-                    pcs = int(pcs_raw) if pcs_raw not in ("", None) else 0
+                    pcs_val = int(row.get("PCS") or 0)
+                    total_pcs_preview += pcs_val
                 except:
-                    pcs = 0
-                if color:
-                    match_entries.append(f"{color}:{pcs}")
-                    total_pcs += pcs
+                    continue
+            st.markdown(f"**Total PCS:** {total_pcs_preview}")
 
-            st.markdown(f"**Total PCS:** {total_pcs}")
-
+            # Product Form submission
             image_file = st.file_uploader("Upload Image", type=["jpg", "jpeg", "png"])
             image_url = upload_image_to_drive(image_file) if image_file else ""
 
@@ -166,6 +164,18 @@ with tab1:
                     st.error("D.NO. already exists. Use 'Edit Existing' to update.")
                 else:
                     now = datetime.now().isoformat()
+                    match_entries = []
+                    total_pcs = 0
+                    for row in st.session_state.match_data:
+                        color = str(row.get("Color", "")).strip()
+                        try:
+                            pcs = int(row.get("PCS") or 0)
+                        except:
+                            pcs = 0
+                        if color:
+                            match_entries.append(f"{color}:{pcs}")
+                            total_pcs += pcs
+
                     new_data = {
                         "COMPANY NAME": company,
                         "D.NO.": dno,
@@ -193,7 +203,7 @@ with tab1:
                         df = pd.concat([df, pd.DataFrame([new_data])], ignore_index=True)
                         st.success(f"Added new product: {dno}")
                     save_data(df)
-                    st.session_state["match_data"] = match_df
+
 
     st.markdown("---")
     st.subheader("🗑️ Delete Products")
