@@ -80,6 +80,11 @@ else:
 
 # (BEGINNING OF FIXED MAIN BODY)
 
+# jubilee_streamlit_app.py (Final Fixes - Submit Button & Validation)
+# [... keep all existing import and setup code unchanged ...]
+
+# (BEGINNING OF FIXED MAIN BODY)
+
 # === Tab 1 Layout ===
 with tab1:
     st.title("Jubilee Inventory Management System")
@@ -127,6 +132,7 @@ with tab1:
         form_mode = st.radio("Mode", ["Add New", "Edit Existing"])
         selected_dno = st.selectbox("Select D.NO to Edit", df["D.NO."].unique()) if form_mode == "Edit Existing" and not df.empty else ""
         with st.form("product_form"):
+            delete_clicked = False
             col1, col2 = st.columns(2)
             with col1:
                 company = st.text_input("Company Name")
@@ -141,7 +147,19 @@ with tab1:
             image_file = st.file_uploader("Upload Image", type=["jpg", "jpeg", "png"])
             image_url = upload_image_to_drive(image_file) if image_file else ""
 
-            submitted = st.form_submit_button("Save Product")
+                        col_save, col_delete = st.columns([1, 1])
+            with col_save:
+                submitted = st.form_submit_button("Save Product")
+            with col_delete:
+                delete_clicked = st.form_submit_button("Delete Product")
+
+                        if delete_clicked:
+                if form_mode == "Edit Existing" and selected_dno:
+                    df = df[df["D.NO."] != selected_dno]
+                    save_data(df)
+                    st.success(f"Deleted product: {selected_dno}")
+                else:
+                    st.warning("Please select a product to delete in 'Edit Existing' mode.")
 
             if submitted:
                 now = datetime.now().isoformat()
@@ -224,22 +242,3 @@ with tab1:
                     continue
             st.markdown(f"**Total PCS:** {total_pcs_preview}")
             st.caption("MATCHING Preview: " + ", ".join(match_preview))
-
-
-
-
-
-
-    st.markdown("---")
-    st.subheader("🗑️ Delete Products")
-    if not df.empty:
-        selected_to_delete = st.multiselect("Select D.NO. to delete", df["D.NO."].unique())
-        if st.button("Delete Selected"):
-            if selected_to_delete:
-                df = df[~df["D.NO."].isin(selected_to_delete)]
-                save_data(df)
-                st.success(f"Deleted product(s): {', '.join(selected_to_delete)}")
-            else:
-                st.info("No product selected for deletion.")
-    else:
-        st.info("No products available to delete.")
