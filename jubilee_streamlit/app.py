@@ -175,7 +175,7 @@ with tab1:
 
             # Button states are now set above
 
-                if form_mode == "Edit Existing" and selected_dno:
+            if form_mode == "Edit Existing" and selected_dno:
                     df = df[df["D.NO."] != selected_dno]
                     save_data(df)
                     st.success(f"Deleted product: {selected_dno}")
