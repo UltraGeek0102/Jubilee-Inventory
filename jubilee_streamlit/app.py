@@ -153,7 +153,9 @@ with st.form("product_form"):
         rate = st.number_input("Rate", min_value=0.0, value=float(get_default("Rate", 0)))
         pcs = st.number_input("PCS", min_value=0, value=int(float(get_default("PCS", 0))))
     with col2:
-        type_ = st.selectbox("Type", ["WITH LACE", "WITHOUT LACE"], index=["WITH LACE", "WITHOUT LACE"].index(get_default("Type", "WITH LACE")))
+        type_options = ["WITH LACE", "WITHOUT LACE"]
+default_type = get_default("Type", "WITH LACE")
+type_ = st.selectbox("Type", type_options, index=type_options.index(default_type) if default_type in type_options else 0)
         matching_table = st.data_editor(
             [{"Color": "", "PCS": 0}] if get_default("Matching", "") == "" else
             [{"Color": m.split(":")[0], "PCS": int(m.split(":")[1])} for m in get_default("Matching", "").split(",") if ":" in m],
@@ -202,4 +204,3 @@ if not df.empty:
         st.success(f"Deleted {del_dno}")
         st.toast("🗑️ Product deleted.")
         st.experimental_rerun()
-
