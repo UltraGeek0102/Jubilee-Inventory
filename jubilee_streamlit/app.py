@@ -122,7 +122,7 @@ with tab1:
             # Pre-fill values if editing
             duplicate_clicked = False
             if form_mode == "Edit Existing" and selected_dno:
-                selected_row = df[df["D.NO."] == selected_dno]
+                selected_row = filtered_df[filtered_df["D.NO."] == selected_dno]
                 if not selected_row.empty:
                     selected_data = selected_row.iloc[0]
                     default_company = selected_data["COMPANY NAME"]
