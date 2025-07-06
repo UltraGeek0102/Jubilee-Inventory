@@ -21,7 +21,7 @@ scopes = [
 # === AUTH ===
 creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scopes)
 client = gspread.authorize(creds)
-sheet = client.open("jubilee-inventory").sheet1
+sheet = client.open(SHEET_NAME).sheet1
 drive_service = build("drive", "v3", credentials=creds)
 drive_folder_id = st.secrets["drive"]["folder_id"]
 
@@ -141,7 +141,9 @@ else:
     selected_data = {}
 
 def get_default(key, default):
-    return selected_data.get(key, default) if selected_data else default
+    if isinstance(selected_data, pd.Series) and key in selected_data:
+        return selected_data.get(key, default)
+    return default
 
 with st.form("product_form"):
     col1, col2 = st.columns(2)
@@ -200,3 +202,4 @@ if not df.empty:
         st.success(f"Deleted {del_dno}")
         st.toast("🗑️ Product deleted.")
         st.experimental_rerun()
+
