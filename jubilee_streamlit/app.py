@@ -198,8 +198,11 @@ st.subheader("🗑️ Delete Product")
 if not df.empty:
     del_dno = st.selectbox("Select D.NO. to Delete", df["D.NO."].unique())
     if st.button("Confirm Delete"):
-        df = df[df["D.NO."] != del_dno]
-        save_data(df)
-        st.success(f"Deleted {del_dno}")
-        st.toast("🗑️ Product deleted.")
-        st.stop()
+        if del_dno and "D.NO." in df.columns:
+            df = df[df["D.NO."] != del_dno]
+            save_data(df)
+            st.success(f"Deleted {del_dno}")
+            st.toast("🗑️ Product deleted.")
+            st.stop()
+        else:
+            st.warning("⚠️ Unable to delete: Invalid D.NO. or missing column.")
