@@ -10,7 +10,7 @@ from datetime import datetime
 from thefuzz import process
 
 # === CONFIG ===
-SHEET_NAME = "JubileeInventory"
+SHEET_NAME = "jubilee-inventory"
 scopes = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive"
