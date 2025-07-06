@@ -65,10 +65,6 @@ else:
         if col not in df.columns:
             df[col] = ""
 
-# jubilee_streamlit_app.py (Final Fixes - Submit Button & Validation)
-# [... keep all existing import and setup code unchanged ...]
-
-# (BEGINNING OF FIXED MAIN BODY)
 
 # === Tab 1 Layout ===
 with tab1:
@@ -101,6 +97,7 @@ with tab1:
                     filtered.to_excel(writer, index=False)
                 st.download_button("Download Excel", towrite.getvalue(), "jubilee_inventory.xlsx")
 
+    # Apply filter logic for editing section as well
     filtered_df = df.copy()
     if type_filter != "All":
         filtered_df = filtered_df[filtered_df["Type"] == type_filter]
@@ -115,12 +112,12 @@ with tab1:
     st.markdown("---")
     with st.expander("+ Add / Edit Product"):
         form_mode = st.radio("Mode", ["Add New", "Edit Existing"])
-        selected_dno = st.selectbox("Select D.NO to Edit", sorted(filtered_df["D.NO."].dropna().unique())) if form_mode == "Edit Existing" and not df.empty else ""
+        selected_dno = st.selectbox("Select D.NO to Edit", sorted(filtered_df["D.NO."].dropna().unique())) if form_mode == "Edit Existing" and not filtered_df.empty else ""
         with st.form("product_form"):
             delete_clicked = False
-
-            # Pre-fill values if editing
             duplicate_clicked = False
+
+            # Pre-fill values
             if form_mode == "Edit Existing" and selected_dno:
                 selected_row = filtered_df[filtered_df["D.NO."] == selected_dno]
                 if not selected_row.empty:
@@ -132,8 +129,6 @@ with tab1:
                     default_rate = float(selected_data["Rate"] or 0)
                     default_delivery = int(float(selected_data["DELIVERY PCS"] or 0))
                     default_image = selected_data["Image"]
-
-                    # Load MATCHING back into editable table
                     parsed_match = []
                     try:
                         parts = str(selected_data["MATCHING"]).split(",")
@@ -145,20 +140,14 @@ with tab1:
                     except:
                         st.session_state.match_data = [{"Color": "", "PCS": 0}]
                 else:
-                    default_company = st.session_state.get("duplicate_company", "")
-                    default_dno = st.session_state.get("duplicate_dno", "")
-                    default_diamond = st.session_state.get("duplicate_diamond", "")
-                    default_assignee = st.session_state.get("duplicate_assignee", "")
-                    default_type = st.session_state.get("duplicate_type", "")
-                    default_rate = st.session_state.get("duplicate_rate", 0.0)
-                    default_delivery = st.session_state.get("duplicate_delivery", 0.0)
-                    default_image = ""
+                    default_company = default_diamond = default_assignee = default_type = ""
                     default_rate = default_delivery = 0.0
                     default_image = ""
             else:
                 default_company = default_diamond = default_assignee = default_type = ""
                 default_rate = default_delivery = 0.0
                 default_image = ""
+
             col1, col2 = st.columns(2)
             with col1:
                 company = st.text_input("Company Name", value=default_company)
@@ -173,7 +162,40 @@ with tab1:
             image_file = st.file_uploader("Upload Image", type=["jpg", "jpeg", "png"])
             image_url = upload_image_to_drive(image_file) if image_file else ""
 
-            # Button states are now set above
+            st.markdown("### MATCHING (Color + PCS)")
+            if "match_data" not in st.session_state:
+                st.session_state.match_data = [{"Color": "", "PCS": 0}]
+
+            updated_match_df = st.data_editor(
+                st.session_state.match_data,
+                num_rows="dynamic",
+                use_container_width=True,
+                key="match_editor",
+                column_config={
+                    "PCS": st.column_config.NumberColumn("PCS", min_value=0)
+                }
+            )
+            if updated_match_df != st.session_state.match_data:
+                st.session_state.match_data = updated_match_df
+
+            clear_match = st.checkbox("Clear Matching Table")
+            if clear_match:
+                st.session_state.match_data = [{"Color": "", "PCS": 0}]
+
+            total_pcs_preview = 0
+            match_preview = []
+            for row in st.session_state.match_data:
+                try:
+                    pcs_val = int(float(row.get("PCS") or 0))
+                    color_val = str(row.get("Color") or "").strip()
+                    if color_val:
+                        match_preview.append(f"{color_val}:{pcs_val}")
+                        total_pcs_preview += pcs_val
+                except:
+                    continue
+            st.markdown(f"**Total PCS:** {total_pcs_preview}")
+            st.caption("MATCHING Preview: " + ", ".join(match_preview))
+
             col_save, col_delete, col_duplicate = st.columns([1, 1, 1])
             with col_save:
                 submitted = st.form_submit_button("Save Product")
@@ -182,13 +204,11 @@ with tab1:
             with col_duplicate:
                 duplicate_clicked = st.form_submit_button("Duplicate Product")
 
-            if delete_clicked:
-                if form_mode == "Edit Existing" and selected_dno:
-                    df = df[df["D.NO."] != selected_dno]
-                    save_data(df)
-                    st.success(f"Deleted product: {selected_dno}")
-                else:
-                    st.warning("Please select a product to delete in 'Edit Existing' mode.")
+            if delete_clicked and form_mode == "Edit Existing" and selected_dno:
+                df = df[df["D.NO."] != selected_dno]
+                save_data(df)
+                st.toast("🗑️ Product deleted.")
+                st.experimental_rerun()
 
             if submitted:
                 now = datetime.now().isoformat()
@@ -236,69 +256,19 @@ with tab1:
                         df = pd.concat([df, pd.DataFrame([new_data])], ignore_index=True)
                         st.success(f"Added new product: {dno}")
                     save_data(df)
-
-                                # === Show animation on successful submit ===
-                if submitted:
                     st.balloons()
-
-                # === Collapse the expander after save ===
-                if submitted:
                     st.toast("✅ Product saved successfully.")
-                if delete_clicked:
-                    st.toast("🗑️ Product deleted.")
-
-                if submitted or delete_clicked:
                     st.experimental_rerun()
 
-                # === Handle duplication ===
-                if duplicate_clicked and form_mode == "Edit Existing" and selected_dno:
-                    st.session_state.match_data = st.session_state.match_data.copy()
-                    st.session_state["duplicate_company"] = company
-                    st.session_state["duplicate_dno"] = ""
-                    st.session_state["duplicate_diamond"] = diamond
-                    st.session_state["duplicate_assignee"] = assignee
-                    st.session_state["duplicate_type"] = type_val
-                    st.session_state["duplicate_rate"] = rate
-                    st.session_state["duplicate_delivery"] = delivery_pcs
-                    st.experimental_rerun()
-
-                # === Matching UI section moved above submit buttons to ensure correct form structure ===
-            st.markdown("### MATCHING (Color + PCS)")
-            if "match_data" not in st.session_state:
-                st.session_state.match_data = [{"Color": "", "PCS": 0}]
-
-            updated_match_df = st.data_editor(
-                st.session_state.match_data,
-                num_rows="dynamic",
-                use_container_width=True,
-                key="match_editor",
-                column_config={
-                    "PCS": st.column_config.NumberColumn("PCS", min_value=0)
-                }
-            )
-
-            if updated_match_df != st.session_state.match_data:
-                st.session_state.match_data = updated_match_df
-
-            clear_match = st.checkbox("Clear Matching Table")
-            if clear_match:
-                st.session_state.match_data = [{"Color": "", "PCS": 0}]
-
-            total_pcs_preview = 0
-            match_preview = []
-            for row in st.session_state.match_data:
-                try:
-                    pcs_val = int(float(row.get("PCS") or 0))
-                    color_val = str(row.get("Color") or "").strip()
-                    if color_val:
-                        match_preview.append(f"{color_val}:{pcs_val}")
-                        total_pcs_preview += pcs_val
-                except:
-                    continue
-            st.markdown(f"**Total PCS:** {total_pcs_preview}")
-            st.caption("MATCHING Preview: " + ", ".join(match_preview))
-
-            # === Submit, Delete, Duplicate buttons must follow all inputs ===
-          
+            if duplicate_clicked and form_mode == "Edit Existing" and selected_dno:
+                st.session_state.match_data = st.session_state.match_data.copy()
+                st.session_state["duplicate_company"] = company
+                st.session_state["duplicate_dno"] = ""
+                st.session_state["duplicate_diamond"] = diamond
+                st.session_state["duplicate_assignee"] = assignee
+                st.session_state["duplicate_type"] = type_val
+                st.session_state["duplicate_rate"] = rate
+                st.session_state["duplicate_delivery"] = delivery_pcs
+                st.experimental_rerun()
 
           
