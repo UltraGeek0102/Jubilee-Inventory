@@ -70,11 +70,6 @@ else:
 
 # (BEGINNING OF FIXED MAIN BODY)
 
-# jubilee_streamlit_app.py (Final Fixes - Submit Button & Validation)
-# [... keep all existing import and setup code unchanged ...]
-
-# (BEGINNING OF FIXED MAIN BODY)
-
 # === Tab 1 Layout ===
 with tab1:
     st.title("Jubilee Inventory Management System")
@@ -120,7 +115,7 @@ with tab1:
     st.markdown("---")
     with st.expander("+ Add / Edit Product"):
         form_mode = st.radio("Mode", ["Add New", "Edit Existing"])
-        selected_dno = st.selectbox("Select D.NO to Edit", sorted(df["D.NO."].dropna().unique()))) if form_mode == "Edit Existing" and not df.empty else ""
+        selected_dno = st.selectbox("Select D.NO to Edit", sorted(df["D.NO."].dropna().unique())) if form_mode == "Edit Existing" and not df.empty else ""
         with st.form("product_form"):
             delete_clicked = False
 
@@ -265,3 +260,4 @@ with tab1:
                     continue
             st.markdown(f"**Total PCS:** {total_pcs_preview}")
             st.caption("MATCHING Preview: " + ", ".join(match_preview))
+
