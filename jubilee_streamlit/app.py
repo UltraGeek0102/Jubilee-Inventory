@@ -174,6 +174,13 @@ with tab1:
             image_url = upload_image_to_drive(image_file) if image_file else ""
 
             # Button states are now set above
+            col_save, col_delete, col_duplicate = st.columns([1, 1, 1])
+            with col_save:
+                submitted = st.form_submit_button("Save Product")
+            with col_delete:
+                delete_clicked = st.form_submit_button("Delete Product")
+            with col_duplicate:
+                duplicate_clicked = st.form_submit_button("Duplicate Product")
 
             if delete_clicked:
                 if form_mode == "Edit Existing" and selected_dno:
@@ -292,11 +299,4 @@ with tab1:
             st.caption("MATCHING Preview: " + ", ".join(match_preview))
 
             # === Submit, Delete, Duplicate buttons must follow all inputs ===
-            col_save, col_delete, col_duplicate = st.columns([1, 1, 1])
-            with col_save:
-                submitted = st.form_submit_button("Save Product")
-            with col_delete:
-                delete_clicked = st.form_submit_button("Delete Product")
-            with col_duplicate:
-                duplicate_clicked = st.form_submit_button("Duplicate Product")
           
