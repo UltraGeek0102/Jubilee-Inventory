@@ -87,9 +87,7 @@ st.title("\U0001F4E6 Jubilee Inventory Management System")
 
 required_columns = ["D.NO.", "Company", "Type", "PCS", "Rate", "Total", "Matching", "Image", "Created", "Updated", "Status"]
 df = load_data()
-if st.session_state.get("force_reload"):
-    st.session_state.force_reload = False
-    st.experimental_rerun()
+
 
 # Safe one-time rerun trigger
 
