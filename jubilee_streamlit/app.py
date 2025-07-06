@@ -168,7 +168,7 @@ with tab1:
             with col2:
                 type_val = st.selectbox("Type", ["WITH LACE", "WITHOUT LACE"], index=["WITH LACE", "WITHOUT LACE"].index(default_type) if default_type else 0)
                 rate = st.number_input("Rate", min_value=0.0, value=default_rate)
-                delivery_pcs = st.number_input("Delivery PCS", min_value=0, value=default_delivery)
+                delivery_pcs = st.number_input("Delivery PCS", min_value=0, value=int(default_delivery))
 
             image_file = st.file_uploader("Upload Image", type=["jpg", "jpeg", "png"])
             image_url = upload_image_to_drive(image_file) if image_file else ""
@@ -235,6 +235,11 @@ with tab1:
                     st.balloons()
 
                 # === Collapse the expander after save ===
+                if submitted:
+                    st.toast("✅ Product saved successfully.")
+                if delete_clicked:
+                    st.toast("🗑️ Product deleted.")
+
                 if submitted or delete_clicked:
                     st.experimental_rerun()
 
@@ -287,6 +292,9 @@ with tab1:
             st.caption("MATCHING Preview: " + ", ".join(match_preview))
 
             # === Submit, Delete, Duplicate buttons must follow all inputs ===
+            # Optional toast/confirmation output
+            from streamlit_extras.stylable_container import stylable_container
+            from streamlit_extras.switch_page_button import switch_page
             col_save, col_delete, col_duplicate = st.columns([1, 1, 1])
             with col_save:
                 submitted = st.form_submit_button("Save Product")
@@ -294,4 +302,4 @@ with tab1:
                 delete_clicked = st.form_submit_button("Delete Product")
             with col_duplicate:
                 duplicate_clicked = st.form_submit_button("Duplicate Product")
-           
+          
