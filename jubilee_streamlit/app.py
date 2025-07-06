@@ -191,7 +191,7 @@ with st.form("product_form"):
             st.success(f"{'Added' if form_mode == 'Add New' else 'Updated'}: {dno}")
             st.balloons()
             st.toast("✅ Product saved.")
-            st.stop()
+            st.experimental_rerun()
 
 # === DELETE ===
 st.markdown("---")
@@ -203,4 +203,4 @@ if not df.empty:
         save_data(df)
         st.success(f"Deleted {del_dno}")
         st.toast("🗑️ Product deleted.")
-        st.stop()
+        st.experimental_rerun()
