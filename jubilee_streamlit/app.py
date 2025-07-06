@@ -203,4 +203,4 @@ if not df.empty:
         save_data(df)
         st.success(f"Deleted {del_dno}")
         st.toast("🗑️ Product deleted.")
-        st.experimental_rerun()
+        st.stop()
