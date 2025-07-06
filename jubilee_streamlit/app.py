@@ -89,9 +89,13 @@ required_columns = ["D.NO.", "Company", "Type", "PCS", "Rate", "Total", "Matchin
 df = load_data()
 
 # Safe one-time rerun trigger
-if st.session_state.get("force_reload"):
+
+def safe_rerun():
     st.session_state.force_reload = False
     st.experimental_rerun()
+
+if st.session_state.get("force_reload"):
+    safe_rerun()
 
 # === SIDEBAR FILTERS ===
 with st.sidebar:
