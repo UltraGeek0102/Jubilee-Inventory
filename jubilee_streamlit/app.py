@@ -294,5 +294,4 @@ with tab1:
                 delete_clicked = st.form_submit_button("Delete Product")
             with col_duplicate:
                 duplicate_clicked = st.form_submit_button("Duplicate Product")
-            with col_delete:
-                delete_clicked = st.form_submit_button("Delete Product")
+           
