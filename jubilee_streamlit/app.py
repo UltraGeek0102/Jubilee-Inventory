@@ -226,7 +226,6 @@ with st.form("product_form"):
         st.success("Changes saved successfully.")
         st.toast("✅ Product updated.")
         st.session_state.force_reload = True
-        st.session_state.highlight_dno = del_dno.strip().upper()
         st.session_state.highlight_dno = dno.strip().upper()
 
 # === DELETE ===
