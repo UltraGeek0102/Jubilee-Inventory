@@ -132,7 +132,7 @@ if highlight_dno:
     highlighted_df["__highlight__"] = highlighted_df["D.NO."].apply(lambda x: "background-color: #ffe599" if x == highlight_dno else "")
     st.markdown(highlighted_df.drop(columns="__highlight__").assign(Image=highlighted_df["Image"].apply(make_clickable)).style.apply(lambda x: highlighted_df["__highlight__"], axis=1).to_html(escape=False, index=False), unsafe_allow_html=True)
 else:
-    st.markdown(filtered_df.assign(Image=filtered_df["Image"].apply(make_clickable)).to_html(escape=False, index=False), unsafe_allow_html=True).to_html(escape=False, index=False), unsafe_allow_html=True)
+    st.markdown(filtered_df.assign(Image=filtered_df["Image"].apply(make_clickable)).to_html(escape=False, index=False), unsafe_allow_html=True)
 
 # === EXPORT ===
 with st.expander("⬇️ Export Options"):
