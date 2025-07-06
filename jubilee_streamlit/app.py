@@ -92,7 +92,10 @@ df = load_data()
 
 def safe_rerun():
     st.session_state.force_reload = False
-    st.experimental_rerun()
+    try:
+        st.experimental_rerun()
+    except st.script_run_context.RerunException:
+        pass
 
 if st.session_state.get("force_reload"):
     safe_rerun()
