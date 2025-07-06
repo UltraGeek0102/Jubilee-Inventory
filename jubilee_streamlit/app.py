@@ -188,7 +188,9 @@ with st.form("product_form"):
                 "Updated": now, "Created": get_default("Created", now), "Status": calculate_status(total_pcs)
             }])], ignore_index=True)
             save_data(df)
-            st.experimental_rerun()
+        st.success("Changes saved successfully.")
+        st.toast("✅ Product updated.")
+        st.stop()
 
 # === DELETE ===
 st.markdown("---")
@@ -198,4 +200,6 @@ if not df.empty:
     if st.button("Confirm Delete"):
         df = df[df["D.NO."] != del_dno]
         save_data(df)
-        st.experimental_rerun()
+        st.success(f"Deleted {del_dno}")
+        st.toast("🗑️ Product deleted.")
+        st.stop()
