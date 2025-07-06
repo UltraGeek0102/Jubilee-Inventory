@@ -87,6 +87,9 @@ st.title("\U0001F4E6 Jubilee Inventory Management System")
 
 required_columns = ["D.NO.", "Company", "Type", "PCS", "Rate", "Total", "Matching", "Image", "Created", "Updated", "Status"]
 df = load_data()
+if st.session_state.get("force_reload"):
+    st.session_state.force_reload = False
+    st.experimental_rerun()
 
 # Safe one-time rerun trigger
 
@@ -119,8 +122,17 @@ with st.sidebar:
     st.metric("Total Value", f"\u20B9{df['Total'].fillna(0).sum():,.2f}")
 
 # === DATA TABLE ===
-st.markdown("### \U0001F4CA Inventory Table")
-st.markdown(filtered_df.assign(Image=filtered_df["Image"].apply(make_clickable)).to_html(escape=False, index=False), unsafe_allow_html=True)
+st.markdown("### 📊 Inventory Table")
+
+# Highlight updated row if applicable
+highlight_dno = selected_data["D.NO."] if form_mode == "Edit Existing" and submitted else None
+highlighted_df = filtered_df.copy()
+
+if highlight_dno:
+    highlighted_df["__highlight__"] = highlighted_df["D.NO."].apply(lambda x: "background-color: #ffe599" if x == highlight_dno else "")
+    st.markdown(highlighted_df.drop(columns="__highlight__").assign(Image=highlighted_df["Image"].apply(make_clickable)).style.apply(lambda x: highlighted_df["__highlight__"], axis=1).to_html(escape=False, index=False), unsafe_allow_html=True)
+else:
+    st.markdown(filtered_df.assign(Image=filtered_df["Image"].apply(make_clickable)).to_html(escape=False, index=False), unsafe_allow_html=True).to_html(escape=False, index=False), unsafe_allow_html=True)
 
 # === EXPORT ===
 with st.expander("⬇️ Export Options"):
