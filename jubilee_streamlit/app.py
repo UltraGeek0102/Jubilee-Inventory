@@ -191,7 +191,7 @@ with st.form("product_form"):
             st.success(f"{'Added' if form_mode == 'Add New' else 'Updated'}: {dno}")
             st.balloons()
             st.toast("✅ Product saved.")
-            st.experimental_rerun()
+            st.stop()
 
 # === DELETE ===
 st.markdown("---")
