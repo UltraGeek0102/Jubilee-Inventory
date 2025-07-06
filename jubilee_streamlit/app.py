@@ -1,3 +1,5 @@
+# jubilee_inventory_app.py
+
 import streamlit as st
 import pandas as pd
 import gspread
@@ -19,17 +21,26 @@ scopes = [
 # === AUTH ===
 creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scopes)
 client = gspread.authorize(creds)
-sheet = client.open("jubilee-inventory").sheet1
+sheet = client.open(SHEET_NAME).sheet1
 drive_service = build("drive", "v3", credentials=creds)
 drive_folder_id = st.secrets["drive"]["folder_id"]
 
 # === HELPERS ===
 def load_data():
-    return pd.DataFrame(sheet.get_all_records())
+    df = pd.DataFrame(sheet.get_all_records())
+    df = df.drop_duplicates(subset=["D.NO."]).reset_index(drop=True)
+    for col in required_columns:
+        if col not in df.columns:
+            df[col] = ""
+    df["Created"] = pd.to_datetime(df["Created"], errors="coerce")
+    df["Updated"] = pd.to_datetime(df["Updated"], errors="coerce")
+    df["Status"] = df["PCS"].apply(calculate_status)
+    return df.sort_values("Created", ascending=False)
 
 def save_data(df):
+    df = df[required_columns]
     sheet.clear()
-    sheet.update([df.columns.tolist()] + df.values.tolist())
+    sheet.update([df.columns.tolist()] + df.astype(str).values.tolist())
 
 def upload_image(image_file):
     if not image_file:
@@ -46,21 +57,43 @@ def upload_image(image_file):
     drive_service.permissions().create(fileId=file_id, body={"role": "reader", "type": "anyone"}).execute()
     return f"https://drive.google.com/uc?id={file_id}"
 
+def make_clickable(url):
+    return f'<img src="{url}" width="100">' if url else ""
+
+def calculate_status(pcs):
+    pcs = int(float(pcs or 0))
+    if pcs == 0:
+        return "OUT OF STOCK"
+    elif pcs < 5:
+        return "LOW STOCK"
+    else:
+        return "IN STOCK"
+
+def generate_html_report(data):
+    return f"""
+    <html><head><style>
+    body {{ font-family: sans-serif; padding: 20px; }}
+    table {{ width: 100%; border-collapse: collapse; }}
+    th, td {{ border: 1px solid #ccc; padding: 8px; }}
+    </style></head><body>
+    <h2>Jubilee Inventory Report</h2>
+    {data.to_html(index=False)}
+    </body></html>
+    """
+
 # === INIT ===
 st.set_page_config(page_title="Jubilee Inventory", layout="wide")
-st.title("📦 Jubilee Inventory Management System")
+st.title("\U0001F4E6 Jubilee Inventory Management System")
 
+required_columns = ["D.NO.", "Company", "Type", "PCS", "Rate", "Total", "Matching", "Image", "Created", "Updated", "Status"]
 df = load_data()
-required_columns = ["D.NO.", "Company", "Type", "PCS", "Rate", "Total", "Matching", "Image", "Created", "Updated"]
-for col in required_columns:
-    if col not in df.columns:
-        df[col] = ""
 
-# === FILTERS ===
+# === SIDEBAR FILTERS ===
 with st.sidebar:
-    st.header("🔍 Filter")
-    type_filter = st.selectbox("Type", ["All"] + df["Type"].dropna().unique().tolist())
+    st.header("\U0001F50D Filter")
+    type_filter = st.selectbox("Type", ["All"] + sorted(df["Type"].dropna().unique().tolist()))
     search = st.text_input("Search D.NO. or Company")
+
     filtered_df = df.copy()
     if type_filter != "All":
         filtered_df = filtered_df[filtered_df["Type"] == type_filter]
@@ -71,9 +104,29 @@ with st.sidebar:
         filtered_df = df[df["D.NO."].isin(hits) | df["Company"].isin(hits)]
 
     st.metric("Total PCS", int(df["PCS"].fillna(0).sum()))
-    st.metric("Total Value", f"₹{df['Total'].fillna(0).sum():,.2f}")
+    st.metric("Total Value", f"\u20B9{df['Total'].fillna(0).sum():,.2f}")
 
-st.dataframe(filtered_df, use_container_width=True)
+# === DATA TABLE ===
+st.markdown("### \U0001F4CA Inventory Table")
+st.markdown(filtered_df.assign(Image=filtered_df["Image"].apply(make_clickable)).to_html(escape=False, index=False), unsafe_allow_html=True)
+
+# === EXPORT ===
+with st.expander("⬇️ Export Options"):
+    export_format = st.radio("Select format", ["CSV", "Excel"], horizontal=True)
+    export_df = df[required_columns]
+    if export_format == "CSV":
+        csv = export_df.to_csv(index=False).encode("utf-8")
+        st.download_button("Download CSV", csv, "jubilee_inventory.csv", "text/csv")
+    else:
+        from io import BytesIO
+        excel_io = BytesIO()
+        with pd.ExcelWriter(excel_io, engine="xlsxwriter") as writer:
+            export_df.to_excel(writer, index=False, sheet_name="Inventory")
+        st.download_button("Download Excel", excel_io.getvalue(), "jubilee_inventory.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+with st.expander("\U0001F5A8️ Printable Report"):
+    html_report = generate_html_report(df[required_columns])
+    st.download_button("Download HTML Report", html_report.encode(), "jubilee_inventory_report.html", "text/html")
 
 # === FORM ===
 st.markdown("---")
@@ -82,34 +135,26 @@ form_mode = st.radio("Mode", ["Add New", "Edit Existing"], horizontal=True)
 selected_dno = st.selectbox("Select D.NO. to Edit", sorted(filtered_df["D.NO."].dropna().unique())) if form_mode == "Edit Existing" else ""
 
 if form_mode == "Edit Existing" and selected_dno:
-    selected_row = filtered_df[filtered_df["D.NO."] == selected_dno]
-    if not selected_row.empty:
-        selected_data = selected_row.iloc[0]
-        default_company = selected_data["Company"]
-        default_type = selected_data["Type"]
-        default_rate = float(selected_data["Rate"] or 0)
-        default_pcs = int(float(selected_data["PCS"] or 0))
-        default_matching = selected_data["Matching"]
-        default_image = selected_data["Image"]
-    else:
-        default_company = default_type = default_matching = default_image = ""
-        default_rate = default_pcs = 0
+    selected_row = df[df["D.NO."] == selected_dno]
+    selected_data = selected_row.iloc[0] if not selected_row.empty else {}
 else:
-    default_company = default_type = default_matching = default_image = ""
-    default_rate = default_pcs = 0
+    selected_data = {}
+
+def get_default(key, default):
+    return selected_data.get(key, default) if selected_data else default
 
 with st.form("product_form"):
     col1, col2 = st.columns(2)
     with col1:
-        company = st.text_input("Company", value=default_company)
-        dno = st.text_input("D.NO.", value=selected_dno)
-        rate = st.number_input("Rate", min_value=0.0, value=default_rate)
-        pcs = st.number_input("PCS", min_value=0, value=default_pcs)
+        company = st.text_input("Company", value=get_default("Company", ""))
+        dno = st.text_input("D.NO.", value=get_default("D.NO.", ""))
+        rate = st.number_input("Rate", min_value=0.0, value=float(get_default("Rate", 0)))
+        pcs = st.number_input("PCS", min_value=0, value=int(float(get_default("PCS", 0))))
     with col2:
-        type_ = st.selectbox("Type", ["WITH LACE", "WITHOUT LACE"], index=["WITH LACE", "WITHOUT LACE"].index(default_type) if default_type else 0)
+        type_ = st.selectbox("Type", ["WITH LACE", "WITHOUT LACE"], index=["WITH LACE", "WITHOUT LACE"].index(get_default("Type", "WITH LACE")))
         matching_table = st.data_editor(
-            [{"Color": "", "PCS": 0}] if default_matching == "" else
-            [{"Color": m.split(":")[0], "PCS": int(m.split(":")[1])} for m in default_matching.split(",") if ":" in m],
+            [{"Color": "", "PCS": 0}] if get_default("Matching", "") == "" else
+            [{"Color": m.split(":")[0], "PCS": int(m.split(":")[1])} for m in get_default("Matching", "").split(",") if ":" in m],
             num_rows="dynamic", key="match_editor",
             column_config={"PCS": st.column_config.NumberColumn("PCS", min_value=0)}
         )
@@ -118,28 +163,25 @@ with st.form("product_form"):
     submitted = st.form_submit_button("Save Product")
 
     if submitted:
-        match_entries = []
-        total_pcs = 0
+        match_entries, total_pcs = [], 0
         for row in matching_table:
-            try:
-                pcs_val = int(float(row.get("PCS") or 0))
-                color_val = str(row.get("Color") or "").strip()
-                if color_val:
-                    match_entries.append(f"{color_val}:{pcs_val}")
-                    total_pcs += pcs_val
-            except:
-                continue
+            color_val = str(row.get("Color") or "").strip()
+            pcs_val = int(float(row.get("PCS") or 0))
+            if color_val:
+                match_entries.append(f"{color_val}:{pcs_val}")
+                total_pcs += pcs_val
+
         if not company or not dno:
             st.warning("Company and D.NO. are required.")
         else:
-            image_url = upload_image(image_file) if image_file else default_image
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            image_url = upload_image(image_file) if image_file else get_default("Image", "")
+            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             df = df[df["D.NO."] != dno]
             df = pd.concat([df, pd.DataFrame([{
-                "D.NO.": dno, "Company": company, "Type": type_, "PCS": total_pcs,
-                "Rate": rate, "Total": rate * total_pcs,
+                "D.NO.": dno.strip().upper(), "Company": company.strip().upper(), "Type": type_,
+                "PCS": total_pcs, "Rate": rate, "Total": rate * total_pcs,
                 "Matching": ", ".join(match_entries), "Image": image_url,
-                "Updated": timestamp, "Created": timestamp if form_mode == "Add New" else selected_data["Created"]
+                "Updated": now, "Created": get_default("Created", now), "Status": calculate_status(total_pcs)
             }])], ignore_index=True)
             save_data(df)
             st.success(f"{'Added' if form_mode == 'Add New' else 'Updated'}: {dno}")
@@ -152,7 +194,7 @@ st.markdown("---")
 st.subheader("🗑️ Delete Product")
 if not df.empty:
     del_dno = st.selectbox("Select D.NO. to Delete", df["D.NO."].unique())
-    if st.button("Delete"):
+    if st.button("Confirm Delete"):
         df = df[df["D.NO."] != del_dno]
         save_data(df)
         st.success(f"Deleted {del_dno}")
