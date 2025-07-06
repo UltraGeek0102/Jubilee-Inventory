@@ -115,7 +115,7 @@ with tab1:
     st.markdown("---")
     with st.expander("+ Add / Edit Product"):
         form_mode = st.radio("Mode", ["Add New", "Edit Existing"])
-        selected_dno = st.selectbox("Select D.NO to Edit", sorted(df["D.NO."].dropna().unique())) if form_mode == "Edit Existing" and not df.empty else ""
+        selected_dno = st.selectbox("Select D.NO to Edit", sorted(filtered_df["D.NO."].dropna().unique())) if form_mode == "Edit Existing" and not df.empty else ""
         with st.form("product_form"):
             delete_clicked = False
 
@@ -139,7 +139,7 @@ with tab1:
                         parts = str(selected_data["MATCHING"]).split(",")
                         for p in parts:
                             if ":" in p:
-                                color, pcs = p.strip().split(":")
+                                color, pcs = map(str.strip, p.strip().split(":", 1))
                                 parsed_match.append({"Color": color.strip(), "PCS": int(pcs.strip())})
                         st.session_state.match_data = parsed_match if parsed_match else [{"Color": "", "PCS": 0}]
                     except:
@@ -299,4 +299,6 @@ with tab1:
             st.caption("MATCHING Preview: " + ", ".join(match_preview))
 
             # === Submit, Delete, Duplicate buttons must follow all inputs ===
+          
+
           
