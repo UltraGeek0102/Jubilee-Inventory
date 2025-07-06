@@ -70,6 +70,11 @@ else:
 
 # (BEGINNING OF FIXED MAIN BODY)
 
+# jubilee_streamlit_app.py (Final Fixes - Submit Button & Validation)
+# [... keep all existing import and setup code unchanged ...]
+
+# (BEGINNING OF FIXED MAIN BODY)
+
 # === Tab 1 Layout ===
 with tab1:
     st.title("Jubilee Inventory Management System")
@@ -115,19 +120,52 @@ with tab1:
     st.markdown("---")
     with st.expander("+ Add / Edit Product"):
         form_mode = st.radio("Mode", ["Add New", "Edit Existing"])
-        selected_dno = st.selectbox("Select D.NO to Edit", sorted(df["D.NO."].dropna().unique())) if form_mode == "Edit Existing" and not df.empty else ""
+        selected_dno = st.selectbox("Select D.NO to Edit", sorted(df["D.NO."].dropna().unique()))) if form_mode == "Edit Existing" and not df.empty else ""
         with st.form("product_form"):
             delete_clicked = False
+
+            # Pre-fill values if editing
+            if form_mode == "Edit Existing" and selected_dno:
+                selected_row = df[df["D.NO."] == selected_dno]
+                if not selected_row.empty:
+                    selected_data = selected_row.iloc[0]
+                    default_company = selected_data["COMPANY NAME"]
+                    default_diamond = selected_data["Diamond"]
+                    default_assignee = selected_data["Assignee"]
+                    default_type = selected_data["Type"]
+                    default_rate = float(selected_data["Rate"])
+                    default_delivery = int(selected_data["DELIVERY PCS"])
+                    default_image = selected_data["Image"]
+
+                    # Load MATCHING back into editable table
+                    parsed_match = []
+                    try:
+                        parts = str(selected_data["MATCHING"]).split(",")
+                        for p in parts:
+                            if ":" in p:
+                                color, pcs = p.strip().split(":")
+                                parsed_match.append({"Color": color.strip(), "PCS": int(pcs.strip())})
+                        st.session_state.match_data = parsed_match if parsed_match else [{"Color": "", "PCS": 0}]
+                    except:
+                        st.session_state.match_data = [{"Color": "", "PCS": 0}]
+                else:
+                    default_company = default_diamond = default_assignee = default_type = ""
+                    default_rate = default_delivery = 0.0
+                    default_image = ""
+            else:
+                default_company = default_diamond = default_assignee = default_type = ""
+                default_rate = default_delivery = 0.0
+                default_image = ""
             col1, col2 = st.columns(2)
             with col1:
-                company = st.text_input("Company Name")
+                company = st.text_input("Company Name", value=default_company)
                 dno = st.text_input("D.NO.", value=selected_dno)
-                diamond = st.text_input("Diamond")
-                assignee = st.text_input("Assignee")
+                diamond = st.text_input("Diamond", value=default_diamond)
+                assignee = st.text_input("Assignee", value=default_assignee)
             with col2:
-                type_val = st.selectbox("Type", ["WITH LACE", "WITHOUT LACE"])
-                rate = st.number_input("Rate", min_value=0.0)
-                delivery_pcs = st.number_input("Delivery PCS", min_value=0)
+                type_val = st.selectbox("Type", ["WITH LACE", "WITHOUT LACE"], index=["WITH LACE", "WITHOUT LACE"].index(default_type) if default_type else 0)
+                rate = st.number_input("Rate", min_value=0.0, value=default_rate)
+                delivery_pcs = st.number_input("Delivery PCS", min_value=0, value=default_delivery)
 
             image_file = st.file_uploader("Upload Image", type=["jpg", "jpeg", "png"])
             image_url = upload_image_to_drive(image_file) if image_file else ""
