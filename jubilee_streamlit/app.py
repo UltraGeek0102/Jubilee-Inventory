@@ -122,19 +122,30 @@ with st.sidebar:
     st.metric("Total Value", f"\u20B9{df['Total'].fillna(0).sum():,.2f}")
 
 # === DATA TABLE ===
-st.markdown("### 📊 Inventory Table")
+# Inventory Table rendered below only after form submission status is known, unsafe_allow_html=True)
 
-# Highlight updated row if applicable
-highlight_dno = selected_data["D.NO."] if form_mode == "Edit Existing" and submitted else None
+# === EXPORT ===
+
+# === DATA TABLE (NOW MOVED HERE AFTER submission state is known) ===
+st.markdown("### 📊 Inventory Table")
+highlight_dno = st.session_state.get("highlight_dno")
 highlighted_df = filtered_df.copy()
 
 if highlight_dno:
     highlighted_df["__highlight__"] = highlighted_df["D.NO."].apply(lambda x: "background-color: #ffe599" if x == highlight_dno else "")
-    st.markdown(highlighted_df.drop(columns="__highlight__").assign(Image=highlighted_df["Image"].apply(make_clickable)).style.apply(lambda x: highlighted_df["__highlight__"], axis=1).to_html(escape=False, index=False), unsafe_allow_html=True)
+    st.markdown(
+        highlighted_df.drop(columns="__highlight__")
+        .assign(Image=highlighted_df["Image"].apply(make_clickable))
+        .style.apply(lambda x: highlighted_df["__highlight__"], axis=1)
+        .to_html(escape=False, index=False),
+        unsafe_allow_html=True
+    )
+    st.session_state.highlight_dno = None  # reset highlight after display
 else:
-    st.markdown(filtered_df.assign(Image=filtered_df["Image"].apply(make_clickable)).to_html(escape=False, index=False), unsafe_allow_html=True)
-
-# === EXPORT ===
+    st.markdown(
+        filtered_df.assign(Image=filtered_df["Image"].apply(make_clickable)).to_html(escape=False, index=False),
+        unsafe_allow_html=True
+    )
 with st.expander("⬇️ Export Options"):
     export_format = st.radio("Select format", ["CSV", "Excel"], horizontal=True)
     export_df = df[required_columns]
@@ -215,6 +226,8 @@ with st.form("product_form"):
         st.success("Changes saved successfully.")
         st.toast("✅ Product updated.")
         st.session_state.force_reload = True
+        st.session_state.highlight_dno = del_dno.strip().upper()
+        st.session_state.highlight_dno = dno.strip().upper()
 
 # === DELETE ===
 st.markdown("---")
