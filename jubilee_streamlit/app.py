@@ -120,6 +120,7 @@ with tab1:
             delete_clicked = False
 
             # Pre-fill values if editing
+            duplicate_clicked = False
             if form_mode == "Edit Existing" and selected_dno:
                 selected_row = df[df["D.NO."] == selected_dno]
                 if not selected_row.empty:
@@ -128,8 +129,8 @@ with tab1:
                     default_diamond = selected_data["Diamond"]
                     default_assignee = selected_data["Assignee"]
                     default_type = selected_data["Type"]
-                    default_rate = float(selected_data["Rate"])
-                    default_delivery = int(selected_data["DELIVERY PCS"])
+                    default_rate = float(selected_data["Rate"] or 0)
+                    default_delivery = int(float(selected_data["DELIVERY PCS"] or 0))
                     default_image = selected_data["Image"]
 
                     # Load MATCHING back into editable table
@@ -144,7 +145,14 @@ with tab1:
                     except:
                         st.session_state.match_data = [{"Color": "", "PCS": 0}]
                 else:
-                    default_company = default_diamond = default_assignee = default_type = ""
+                    default_company = st.session_state.get("duplicate_company", "")
+                    default_dno = st.session_state.get("duplicate_dno", "")
+                    default_diamond = st.session_state.get("duplicate_diamond", "")
+                    default_assignee = st.session_state.get("duplicate_assignee", "")
+                    default_type = st.session_state.get("duplicate_type", "")
+                    default_rate = st.session_state.get("duplicate_rate", 0.0)
+                    default_delivery = st.session_state.get("duplicate_delivery", 0.0)
+                    default_image = ""
                     default_rate = default_delivery = 0.0
                     default_image = ""
             else:
@@ -165,11 +173,7 @@ with tab1:
             image_file = st.file_uploader("Upload Image", type=["jpg", "jpeg", "png"])
             image_url = upload_image_to_drive(image_file) if image_file else ""
 
-            col_save, col_delete = st.columns([1, 1])
-            with col_save:
-                submitted = st.form_submit_button("Save Product")
-            with col_delete:
-                delete_clicked = st.form_submit_button("Delete Product")
+            
 
             if delete_clicked:
                 if form_mode == "Edit Existing" and selected_dno:
@@ -226,7 +230,28 @@ with tab1:
                         st.success(f"Added new product: {dno}")
                     save_data(df)
 
-                st.markdown("### MATCHING (Color + PCS)")
+                                # === Show animation on successful submit ===
+                if submitted:
+                    st.balloons()
+
+                # === Collapse the expander after save ===
+                if submitted or delete_clicked:
+                    st.experimental_rerun()
+
+                # === Handle duplication ===
+                if duplicate_clicked and form_mode == "Edit Existing" and selected_dno:
+                    st.session_state.match_data = st.session_state.match_data.copy()
+                    st.session_state["duplicate_company"] = company
+                    st.session_state["duplicate_dno"] = ""
+                    st.session_state["duplicate_diamond"] = diamond
+                    st.session_state["duplicate_assignee"] = assignee
+                    st.session_state["duplicate_type"] = type_val
+                    st.session_state["duplicate_rate"] = rate
+                    st.session_state["duplicate_delivery"] = delivery_pcs
+                    st.experimental_rerun()
+
+                # === Matching UI section moved above submit buttons to ensure correct form structure ===
+            st.markdown("### MATCHING (Color + PCS)")
             if "match_data" not in st.session_state:
                 st.session_state.match_data = [{"Color": "", "PCS": 0}]
 
@@ -261,3 +286,13 @@ with tab1:
             st.markdown(f"**Total PCS:** {total_pcs_preview}")
             st.caption("MATCHING Preview: " + ", ".join(match_preview))
 
+            # === Submit, Delete, Duplicate buttons must follow all inputs ===
+            col_save, col_delete, col_duplicate = st.columns([1, 1, 1])
+            with col_save:
+                submitted = st.form_submit_button("Save Product")
+            with col_delete:
+                delete_clicked = st.form_submit_button("Delete Product")
+            with col_duplicate:
+                duplicate_clicked = st.form_submit_button("Duplicate Product")
+            with col_delete:
+                delete_clicked = st.form_submit_button("Delete Product")
