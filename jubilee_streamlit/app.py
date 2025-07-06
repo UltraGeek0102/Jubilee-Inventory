@@ -173,9 +173,8 @@ with tab1:
             image_file = st.file_uploader("Upload Image", type=["jpg", "jpeg", "png"])
             image_url = upload_image_to_drive(image_file) if image_file else ""
 
-            
+            # Button states are now set above
 
-            if delete_clicked:
                 if form_mode == "Edit Existing" and selected_dno:
                     df = df[df["D.NO."] != selected_dno]
                     save_data(df)
@@ -292,9 +291,6 @@ with tab1:
             st.caption("MATCHING Preview: " + ", ".join(match_preview))
 
             # === Submit, Delete, Duplicate buttons must follow all inputs ===
-            # Optional toast/confirmation output
-            from streamlit_extras.stylable_container import stylable_container
-            from streamlit_extras.switch_page_button import switch_page
             col_save, col_delete, col_duplicate = st.columns([1, 1, 1])
             with col_save:
                 submitted = st.form_submit_button("Save Product")
