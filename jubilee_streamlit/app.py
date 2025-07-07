@@ -28,6 +28,46 @@ sheet = client.open("jubilee-inventory").sheet1
 drive_service = build("drive", "v3", credentials=creds)
 drive_folder_id = st.secrets["drive"]["folder_id"]
 
+# === MOBILE RESPONSIVE STYLING ===
+st.markdown("""
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        @media (max-width: 768px) {
+            .block-container {
+                padding: 1rem !important;
+            }
+            h1 {
+                font-size: 1.5rem !important;
+            }
+            h3, .metric-label {
+                font-size: 1.1rem !important;
+            }
+            .scroll-table-wrapper {
+                max-height: 300px;
+            }
+            .sidebar-toggle-button {
+                top: 10px !important;
+                left: 10px !important;
+                font-size: 14px;
+                padding: 6px 10px;
+            }
+            .element-container:has(.stButton) {
+                width: 100% !important;
+            }
+        }
+        footer { visibility: hidden; }
+        .scroll-table-wrapper table {
+            font-size: 14px;
+            min-width: 600px;
+            word-break: break-word;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
+# === Fix image size for mobile preview ===
+def make_clickable(url):
+    return f'<img src="{url}" style="width:100%; max-width:100px; height:auto;">' if url else ""
+
 # === PAGE CONFIG ===
 st.set_page_config(
     page_title="Jubilee Inventory",
