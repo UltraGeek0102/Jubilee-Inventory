@@ -104,6 +104,7 @@ if "highlight_dno" not in st.session_state:
 
 df = load_data()
 
+# === Safe rerun ===
 def safe_rerun():
     st.session_state.force_reload = False
     try:
@@ -115,16 +116,21 @@ if st.session_state.get("force_reload"):
     safe_rerun()
 
 # === BRAND HEADER ===
+st.markdown("""
+    <style>
+        .block-container { padding-top: 1rem; }
+        header { visibility: hidden; }
+    </style>
+""", unsafe_allow_html=True)
+
 col1, col2 = st.columns([1, 6])
 with col1:
     if logo_path.exists():
-        st.image(str(logo_path), width=48)
+        st.image(str(logo_path), width=40)
     else:
         st.markdown("<p style='color:red;'>[Logo not found]</p>", unsafe_allow_html=True)
 with col2:
-    st.markdown("<h1 style='margin-top: 20px;'>JUBILEE TEXTILE PROCESSORS</h1>", unsafe_allow_html=True)
-
-st.markdown("<h1 style='margin-bottom: 30px;'>📦 Jubilee Inventory Management System</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='margin-top: 16px;'>JUBILEE TEXTILE PROCESSORS</h1>", unsafe_allow_html=True)
 
 # === SIDEBAR ===
 with st.sidebar:
@@ -149,33 +155,65 @@ with st.sidebar:
     st.metric("Total PCS", int(df["PCS"].fillna(0).sum()))
     st.metric("Total Value", f"₹{df['Total'].fillna(0).sum():,.2f}")
 
-# Remaining app logic (form, table, export, etc.) goes here...
+    with st.expander("⬇️ Export Options"):
+        export_format = st.radio("Select format", ["CSV", "Excel"], horizontal=True)
+        export_df = filtered_df[required_columns]
+        if export_format == "CSV":
+            csv = export_df.to_csv(index=False).encode("utf-8")
+            st.download_button("Download CSV", csv, "jubilee_inventory.csv", "text/csv")
+        else:
+            from io import BytesIO
+            excel_io = BytesIO()
+            with pd.ExcelWriter(excel_io, engine="xlsxwriter") as writer:
+                export_df.to_excel(writer, index=False, sheet_name="Inventory")
+            st.download_button("Download Excel", excel_io.getvalue(), "jubilee_inventory.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
+    with st.expander("🧾 Printable Report"):
+        html_report = generate_html_report(filtered_df[required_columns])
+        st.download_button("Download HTML Report", html_report.encode(), "jubilee_inventory_report.html", "text/html")
 
+# === SCROLLABLE DATA TABLE ===
+st.markdown("""
+    <style>
+    .scroll-table-container {
+        overflow-x: auto;
+        border: 1px solid #444;
+        border-radius: 6px;
+        padding: 10px;
+        background-color: #111;
+    }
+    table { color: white; }
+    </style>
+""", unsafe_allow_html=True)
 
-
-# === DATA TABLE ===
 st.markdown("### 📊 Inventory Table")
 highlight_dno = st.session_state.get("highlight_dno")
 highlighted_df = filtered_df.copy()
 
-if highlight_dno:
-    highlighted_df["__highlight__"] = highlighted_df["D.NO."].apply(lambda x: "background-color: #ffe599" if x == highlight_dno else "")
-    st.markdown(
-        highlighted_df.drop(columns="__highlight__")
-        .assign(Image=highlighted_df["Image"].apply(make_clickable))
-        .style.apply(lambda x: highlighted_df["__highlight__"], axis=1)
-        .to_html(escape=False, index=False),
-        unsafe_allow_html=True
-    )
-    st.session_state.highlight_dno = None
-else:
-    st.markdown(
-        filtered_df.assign(Image=filtered_df["Image"].apply(make_clickable)).to_html(escape=False, index=False),
-        unsafe_allow_html=True
-    )
+with st.container():
+    st.markdown('<div class="scroll-table-container">', unsafe_allow_html=True)
+    if highlight_dno:
+        highlighted_df["__highlight__"] = highlighted_df["D.NO."].apply(lambda x: "background-color: #ffe599" if x == highlight_dno else "")
+        st.markdown(
+            highlighted_df.drop(columns="__highlight__")
+            .assign(Image=highlighted_df["Image"].apply(make_clickable))
+            .style.apply(lambda x: highlighted_df["__highlight__"], axis=1)
+            .to_html(escape=False, index=False),
+            unsafe_allow_html=True
+        )
+        st.session_state.highlight_dno = None
+    else:
+        st.markdown(
+            filtered_df.assign(Image=filtered_df["Image"].apply(make_clickable)).to_html(escape=False, index=False),
+            unsafe_allow_html=True
+        )
+    st.markdown('</div>', unsafe_allow_html=True)
 
-# === FORM ===
+# jubilee_inventory_app.py
+
+...[previous code remains unchanged]...
+
+# === FORM: ADD / EDIT PRODUCT ===
 st.markdown("---")
 st.subheader("➕ Add / Edit Product")
 form_mode = st.radio("Mode", ["Add New", "Edit Existing"], horizontal=True)
@@ -210,6 +248,13 @@ with st.form("product_form"):
             column_config={"PCS": st.column_config.NumberColumn("PCS", min_value=0)}
         )
         image_file = st.file_uploader("Upload Image", type=["jpg", "jpeg", "png"])
+
+        # === Preview uploaded image or existing one ===
+        preview_url = get_default("Image", "")
+        if image_file:
+            st.image(image_file, caption="Preview (New Upload)", use_column_width=True)
+        elif preview_url:
+            st.image(preview_url, caption="Preview (Current)", use_column_width=True)
 
     submitted = st.form_submit_button("Save Product")
 
