@@ -175,14 +175,19 @@ with st.sidebar:
 # === SCROLLABLE DATA TABLE ===
 st.markdown("""
     <style>
-    .scroll-table-container {
+    .scroll-table-wrapper {
+        max-height: 400px;
+        overflow-y: scroll;
         overflow-x: auto;
         border: 1px solid #444;
         border-radius: 6px;
         padding: 10px;
         background-color: #111;
     }
-    table { color: white; }
+    .scroll-table-wrapper table {
+        color: white;
+        width: 100%;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -191,24 +196,17 @@ highlight_dno = st.session_state.get("highlight_dno")
 highlighted_df = filtered_df.copy()
 
 with st.container():
-    st.markdown('<div class="scroll-table-container">', unsafe_allow_html=True)
     if highlight_dno:
         highlighted_df["__highlight__"] = highlighted_df["D.NO."].apply(lambda x: "background-color: #ffe599" if x == highlight_dno else "")
-        st.markdown(
-            highlighted_df.drop(columns="__highlight__")
-            .assign(Image=highlighted_df["Image"].apply(make_clickable))
-            .style.apply(lambda x: highlighted_df["__highlight__"], axis=1)
-            .to_html(escape=False, index=False),
-            unsafe_allow_html=True
-        )
-        st.session_state.highlight_dno = None
+        html_table = highlighted_df.drop(columns="__highlight__") \
+            .assign(Image=highlighted_df["Image"].apply(make_clickable)) \
+            .style.apply(lambda x: highlighted_df["__highlight__"], axis=1) \
+            .to_html(escape=False, index=False)
     else:
-        st.markdown(
-            filtered_df.assign(Image=filtered_df["Image"].apply(make_clickable)).to_html(escape=False, index=False),
-            unsafe_allow_html=True
-        )
-    st.markdown('</div>', unsafe_allow_html=True)
+        html_table = filtered_df.assign(Image=filtered_df["Image"].apply(make_clickable)) \
+            .to_html(escape=False, index=False)
 
+    st.markdown('<div class="scroll-table-wrapper">' + html_table + '</div>', unsafe_allow_html=True)
 # jubilee_inventory_app.py
 
 # === FORM: ADD / EDIT PRODUCT ===
