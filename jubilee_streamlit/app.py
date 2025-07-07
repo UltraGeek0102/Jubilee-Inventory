@@ -25,6 +25,13 @@ sheet = client.open(SHEET_NAME).sheet1
 drive_service = build("drive", "v3", credentials=creds)
 drive_folder_id = st.secrets["drive"]["folder_id"]
 
+# === PAGE CONFIG ===
+st.set_page_config(
+    page_title="Jubilee Inventory",
+    page_icon="favicon.ico",
+    layout="wide"
+)
+
 # === HELPERS ===
 def load_data():
     df = pd.DataFrame(sheet.get_all_records())
@@ -82,15 +89,23 @@ def generate_html_report(data):
     """
 
 # === INIT ===
-st.set_page_config(page_title="Jubilee Inventory", layout="wide")
 st.title("\U0001F4E6 Jubilee Inventory Management System")
+
+# === BRAND HEADER (Company Logo + Name) ===
+st.markdown(f"""
+    <div style='display: flex; align-items: center; gap: 16px; margin-top: -30px;'>
+        <img src="logo.png" width="60"/>
+        <h1 style='margin: 0; font-size: 32px;'>JUBILEE TEXTILE PROCESSORS</h1>
+    </div>
+""", unsafe_allow_html=True)
 
 required_columns = ["D.NO.", "Company", "Type", "PCS", "Rate", "Total", "Matching", "Image", "Created", "Updated", "Status"]
 df = load_data()
-
+if st.session_state.get("force_reload"):
+    st.session_state.force_reload = False
+    st.experimental_rerun()
 
 # Safe one-time rerun trigger
-
 def safe_rerun():
     st.session_state.force_reload = False
     try:
@@ -103,6 +118,8 @@ if st.session_state.get("force_reload"):
 
 # === SIDEBAR FILTERS ===
 with st.sidebar:
+    st.image("logo.png", width=180)
+    st.markdown("<h3 style='text-align:center; color:white;'>JUBILEE TEXTILE PROCESSORS</h3>", unsafe_allow_html=True)
     st.header("\U0001F50D Filter")
     type_filter = st.selectbox("Type", ["All"] + sorted(df["Type"].dropna().unique().tolist()))
     search = st.text_input("Search D.NO. or Company")
@@ -118,6 +135,9 @@ with st.sidebar:
 
     st.metric("Total PCS", int(df["PCS"].fillna(0).sum()))
     st.metric("Total Value", f"\u20B9{df['Total'].fillna(0).sum():,.2f}")
+
+# Continue with your remaining app code from here...
+
 
 # === DATA TABLE ===
 # Inventory Table rendered below only after form submission status is known, unsafe_allow_html=True)
