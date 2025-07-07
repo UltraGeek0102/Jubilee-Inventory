@@ -36,7 +36,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# === TOGGLE SIDEBAR BUTTON (Functional with Streamlit iframe workaround) ===
+# === TOGGLE SIDEBAR BUTTON WITH ANIMATION ===
 st.markdown("""
     <style>
         .sidebar-toggle-button {
@@ -51,21 +51,41 @@ st.markdown("""
             border-radius: 5px;
             font-weight: bold;
             cursor: pointer;
+            transition: all 0.3s ease-in-out;
         }
     </style>
-    <iframe id="sidebar-frame" style="display:none;"></iframe>
     <script>
-        const btn = document.createElement("button");
-        btn.innerText = "🔁 Toggle Sidebar";
-        btn.className = "sidebar-toggle-button";
-        btn.onclick = function() {
-            const iframe = parent.document.querySelector('iframe');
-            const sidebar = iframe?.contentDocument?.querySelector('section[data-testid="stSidebar"]');
-            if (sidebar) {
-                sidebar.style.display = sidebar.style.display === 'none' ? 'block' : 'none';
-            }
-        };
-        document.body.appendChild(btn);
+        window.addEventListener('DOMContentLoaded', (event) => {
+            const btn = document.createElement("button");
+            btn.innerText = "🔁 Toggle Sidebar";
+            btn.className = "sidebar-toggle-button";
+            btn.onclick = function() {
+                const sidebar = parent.document.querySelector('section[data-testid="stSidebar"]');
+                if (sidebar) {
+                    if (sidebar.style.display === 'none') {
+                        sidebar.style.display = 'block';
+                        sidebar.style.animation = 'slideIn 0.3s forwards';
+                    } else {
+                        sidebar.style.animation = 'slideOut 0.3s forwards';
+                        setTimeout(() => sidebar.style.display = 'none', 280);
+                    }
+                }
+            };
+            document.body.appendChild(btn);
+
+            const style = document.createElement('style');
+            style.innerHTML = `
+                @keyframes slideIn {
+                    from { transform: translateX(-250px); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+                @keyframes slideOut {
+                    from { transform: translateX(0); opacity: 1; }
+                    to { transform: translateX(-250px); opacity: 0; }
+                }
+            `;
+            document.head.appendChild(style);
+        });
     </script>
 """, unsafe_allow_html=True)
 
@@ -174,7 +194,7 @@ st.markdown("""
 col1, col2 = st.columns([1, 6])
 with col1:
     if logo_path.exists():
-        st.image(str(logo_path), width=160)
+        st.image(str(logo_path), width=180)
     else:
         st.markdown("<p style='color:red;'>[Logo not found]</p>", unsafe_allow_html=True)
 with col2:
@@ -186,7 +206,7 @@ with st.sidebar:
         logo_base64 = base64.b64encode(open(str(logo_path), "rb").read()).decode()
         st.markdown(f"""
         <div style='display:flex; justify-content:center; padding-bottom: 10px;'>
-            <img src='data:image/png;base64,{logo_base64}' width='150'>
+            <img src='data:image/png;base64,{logo_base64}' width='160'>
         </div>
         """, unsafe_allow_html=True)
     else:
