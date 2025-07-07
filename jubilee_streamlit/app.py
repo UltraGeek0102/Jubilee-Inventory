@@ -101,6 +101,8 @@ def load_data():
     df["Created"] = pd.to_datetime(df["Created"], errors="coerce")
     df["Updated"] = pd.to_datetime(df["Updated"], errors="coerce")
     df["Status"] = df["PCS"].apply(calculate_status)
+    df["Created"] = df["Created"].fillna("")
+    df["Updated"] = df["Updated"].fillna("")
     return df.sort_values("Created", ascending=False)
 
 def save_data(df):
@@ -267,6 +269,7 @@ with st.container():
             .to_html(escape=False, index=False)
 
     st.markdown('<div class="scroll-table-wrapper">' + html_table + '</div>', unsafe_allow_html=True)
+
 
 
 # === FORM: ADD / EDIT PRODUCT ===
