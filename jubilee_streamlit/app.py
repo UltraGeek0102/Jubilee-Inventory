@@ -23,14 +23,14 @@ scopes = [
 # === AUTH ===
 creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scopes)
 client = gspread.authorize(creds)
-sheet = client.open("jubilee-inventory").sheet1
+sheet = client.open(SHEET_NAME).sheet1
 drive_service = build("drive", "v3", credentials=creds)
 drive_folder_id = st.secrets["drive"]["folder_id"]
 
 # === PAGE CONFIG ===
 st.set_page_config(
     page_title="Jubilee Inventory",
-    page_icon="favicon.ico",
+    page_icon="logo.png",
     layout="wide"
 )
 
@@ -94,24 +94,15 @@ def generate_html_report(data):
     """
 
 # === INIT ===
-st.title("\U0001F4E6 Jubilee Inventory Management System")
-
-# === BRAND HEADER ===
-col1, col2 = st.columns([1, 6])
-with col1:
-    if logo_path.exists():
-        st.image(str(logo_path), width=60)
-    else:
-        st.text("[Logo not found]")
-with col2:
-    st.markdown("<h1 style='margin-top: 20px;'>JUBILEE TEXTILE PROCESSORS</h1>", unsafe_allow_html=True)
-
 required_columns = ["D.NO.", "Company", "Type", "PCS", "Rate", "Total", "Matching", "Image", "Created", "Updated", "Status"]
-df = load_data()
 
-if st.session_state.get("force_reload"):
+if "force_reload" not in st.session_state:
     st.session_state.force_reload = False
-    st.experimental_rerun()
+
+if "highlight_dno" not in st.session_state:
+    st.session_state.highlight_dno = None
+
+df = load_data()
 
 def safe_rerun():
     st.session_state.force_reload = False
@@ -123,14 +114,26 @@ def safe_rerun():
 if st.session_state.get("force_reload"):
     safe_rerun()
 
+# === BRAND HEADER ===
+col1, col2 = st.columns([1, 6])
+with col1:
+    if logo_path.exists():
+        st.image(str(logo_path), width=48)
+    else:
+        st.markdown("<p style='color:red;'>[Logo not found]</p>", unsafe_allow_html=True)
+with col2:
+    st.markdown("<h1 style='margin-top: 20px;'>JUBILEE TEXTILE PROCESSORS</h1>", unsafe_allow_html=True)
+
+st.markdown("<h1 style='margin-bottom: 30px;'>📦 Jubilee Inventory Management System</h1>", unsafe_allow_html=True)
+
 # === SIDEBAR ===
 with st.sidebar:
     if logo_path.exists():
-        st.image(str(logo_path), width=180)
+        st.image(str(logo_path), width=120)
     else:
         st.text("[Logo not found]")
     st.markdown("<h3 style='text-align:center; color:white;'>JUBILEE TEXTILE PROCESSORS</h3>", unsafe_allow_html=True)
-    st.header("\U0001F50D Filter")
+    st.header("🔍 Filter")
     type_filter = st.selectbox("Type", ["All"] + sorted(df["Type"].dropna().unique().tolist()))
     search = st.text_input("Search D.NO. or Company")
 
@@ -146,8 +149,8 @@ with st.sidebar:
     st.metric("Total PCS", int(df["PCS"].fillna(0).sum()))
     st.metric("Total Value", f"₹{df['Total'].fillna(0).sum():,.2f}")
 
-# === CONTINUE AS BEFORE ===
-# (Your form, table, edit, delete, export, etc. sections continue from here)
+# Remaining app logic (form, table, export, etc.) goes here...
+
 
 
 
