@@ -34,7 +34,8 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"  # Ensures sidebar remains visible by default
 )
-  # === TOGGLE SIDEBAR BUTTON OUTSIDE SIDEBAR ===
+
+# === TOGGLE SIDEBAR BUTTON OUTSIDE SIDEBAR ===
 with st.container():
     st.markdown("""
         <style>
@@ -59,42 +60,6 @@ with st.container():
         </script>
         <div class="toggle-button" onclick="toggleSidebar()">🔁 Toggle Sidebar</div>
     """, unsafe_allow_html=True)
-
-# === SCROLLABLE DATA TABLE ===
-st.markdown("""
-    <style>
-    .scroll-table-wrapper {
-        max-height: 400px;
-        overflow-y: scroll;
-        overflow-x: auto;
-        border: 1px solid #444;
-        border-radius: 6px;
-        padding: 10px;
-        background-color: #111;
-    }
-    .scroll-table-wrapper table {
-        color: white;
-        width: 100%;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
-st.markdown("### 📊 Inventory Table")
-highlight_dno = st.session_state.get("highlight_dno")
-highlighted_df = filtered_df.copy()
-
-with st.container():
-    if highlight_dno:
-        highlighted_df["__highlight__"] = highlighted_df["D.NO."].apply(lambda x: "background-color: #ffe599" if x == highlight_dno else "")
-        html_table = highlighted_df.drop(columns="__highlight__") \
-            .assign(Image=highlighted_df["Image"].apply(make_clickable)) \
-            .style.apply(lambda x: highlighted_df["__highlight__"], axis=1) \
-            .to_html(escape=False, index=False)
-    else:
-        html_table = filtered_df.assign(Image=filtered_df["Image"].apply(make_clickable)) \
-            .to_html(escape=False, index=False)
-
-    st.markdown('<div class="scroll-table-wrapper">' + html_table + '</div>', unsafe_allow_html=True)
 
 # === PATH CONFIG ===
 logo_path = Path(__file__).parent / "logo.png"
@@ -166,6 +131,19 @@ if "highlight_dno" not in st.session_state:
 
 df = load_data()
 
+# === FILTERING ===
+filtered_df = df.copy()
+type_filter = st.selectbox("Type", ["All"] + sorted(df["Type"].dropna().unique().tolist()))
+search = st.text_input("Search D.NO. or Company")
+
+if type_filter != "All":
+    filtered_df = filtered_df[filtered_df["Type"] == type_filter]
+if search:
+    all_text = df["D.NO."].fillna("").tolist() + df["Company"].fillna("").tolist()
+    matched = process.extract(search, all_text, limit=20)
+    hits = set([m[0] for m in matched if m[1] > 60])
+    filtered_df = df[df["D.NO."].isin(hits) | df["Company"].isin(hits)]
+
 # === Safe rerun ===
 def safe_rerun():
     st.session_state.force_reload = False
@@ -202,17 +180,7 @@ with st.sidebar:
         st.text("[Logo not found]")
     st.markdown("<h3 style='text-align:center; color:white;'>JUBILEE TEXTILE PROCESSORS</h3>", unsafe_allow_html=True)
     st.header("🔍 Filter")
-    type_filter = st.selectbox("Type", ["All"] + sorted(df["Type"].dropna().unique().tolist()))
-    search = st.text_input("Search D.NO. or Company")
-
-    filtered_df = df.copy()
-    if type_filter != "All":
-        filtered_df = filtered_df[filtered_df["Type"] == type_filter]
-    if search:
-        all_text = df["D.NO."].fillna("").tolist() + df["Company"].fillna("").tolist()
-        matched = process.extract(search, all_text, limit=20)
-        hits = set([m[0] for m in matched if m[1] > 60])
-        filtered_df = df[df["D.NO."].isin(hits) | df["Company"].isin(hits)]
+    # type_filter and search already handled
 
     st.metric("Total PCS", int(df["PCS"].fillna(0).sum()))
     st.metric("Total Value", f"₹{df['Total'].fillna(0).sum():,.2f}")
@@ -233,7 +201,7 @@ with st.sidebar:
     with st.expander("🧾 Printable Report"):
         html_report = generate_html_report(filtered_df[required_columns])
         st.download_button("Download HTML Report", html_report.encode(), "jubilee_inventory_report.html", "text/html")
-        
+
 # === SCROLLABLE DATA TABLE ===
 st.markdown("""
     <style>
@@ -269,7 +237,6 @@ with st.container():
             .to_html(escape=False, index=False)
 
     st.markdown('<div class="scroll-table-wrapper">' + html_table + '</div>', unsafe_allow_html=True)
-# jubilee_inventory_app.py
 
 
 # === FORM: ADD / EDIT PRODUCT ===
