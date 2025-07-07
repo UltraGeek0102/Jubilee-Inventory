@@ -174,6 +174,14 @@ with st.sidebar:
         html_report = generate_html_report(filtered_df[required_columns])
         st.download_button("Download HTML Report", html_report.encode(), "jubilee_inventory_report.html", "text/html")
 
+# === PAGE CONFIG ===
+st.set_page_config(
+    page_title="Jubilee Inventory",
+    page_icon="logo.png",
+    layout="wide",
+    initial_sidebar_state="expanded"  # Ensures sidebar remains visible by default
+)
+
 # === SIDEBAR TOGGLE BUTTON ===
 with st.sidebar:
     if st.button("🔁 Toggle Sidebar"):
