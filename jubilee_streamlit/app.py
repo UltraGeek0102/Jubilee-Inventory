@@ -34,12 +34,67 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"  # Ensures sidebar remains visible by default
 )
+  # === TOGGLE SIDEBAR BUTTON OUTSIDE SIDEBAR ===
+with st.container():
+    st.markdown("""
+        <style>
+        .toggle-button {
+            position: fixed;
+            top: 15px;
+            left: 15px;
+            z-index: 9999;
+            background-color: #333;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        </style>
+        <script>
+        function toggleSidebar() {
+            const sidebar = window.parent.document.querySelector("section[data-testid='stSidebar']");
+            if (sidebar) sidebar.style.display = sidebar.style.display === 'none' ? 'block' : 'none';
+        }
+        </script>
+        <div class="toggle-button" onclick="toggleSidebar()">🔁 Toggle Sidebar</div>
+    """, unsafe_allow_html=True)
 
-# === SIDEBAR TOGGLE BUTTON ===
-with st.sidebar:
-    if st.button("🔁 Toggle Sidebar"):
-        st.markdown("<script>document.body.classList.toggle('stSidebar');</script>", unsafe_allow_html=True)
+# === SCROLLABLE DATA TABLE ===
+st.markdown("""
+    <style>
+    .scroll-table-wrapper {
+        max-height: 400px;
+        overflow-y: scroll;
+        overflow-x: auto;
+        border: 1px solid #444;
+        border-radius: 6px;
+        padding: 10px;
+        background-color: #111;
+    }
+    .scroll-table-wrapper table {
+        color: white;
+        width: 100%;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
+st.markdown("### 📊 Inventory Table")
+highlight_dno = st.session_state.get("highlight_dno")
+highlighted_df = filtered_df.copy()
+
+with st.container():
+    if highlight_dno:
+        highlighted_df["__highlight__"] = highlighted_df["D.NO."].apply(lambda x: "background-color: #ffe599" if x == highlight_dno else "")
+        html_table = highlighted_df.drop(columns="__highlight__") \
+            .assign(Image=highlighted_df["Image"].apply(make_clickable)) \
+            .style.apply(lambda x: highlighted_df["__highlight__"], axis=1) \
+            .to_html(escape=False, index=False)
+    else:
+        html_table = filtered_df.assign(Image=filtered_df["Image"].apply(make_clickable)) \
+            .to_html(escape=False, index=False)
+
+    st.markdown('<div class="scroll-table-wrapper">' + html_table + '</div>', unsafe_allow_html=True)
 
 # === PATH CONFIG ===
 logo_path = Path(__file__).parent / "logo.png"
