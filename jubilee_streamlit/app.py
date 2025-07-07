@@ -11,6 +11,7 @@ import io
 from datetime import datetime
 from thefuzz import process
 import os
+from pathlib import Path
 
 # === CONFIG ===
 SHEET_NAME = "jubilee-inventory"
@@ -32,6 +33,9 @@ st.set_page_config(
     page_icon="favicon.ico",
     layout="wide"
 )
+
+# === PATH CONFIG ===
+logo_path = Path(__file__).parent / "logo.png"
 
 # === HELPERS ===
 def load_data():
@@ -95,8 +99,8 @@ st.title("\U0001F4E6 Jubilee Inventory Management System")
 # === BRAND HEADER ===
 col1, col2 = st.columns([1, 6])
 with col1:
-    if os.path.exists("logo.png"):
-        st.image("logo.png", width=60)
+    if logo_path.exists():
+        st.image(str(logo_path), width=60)
     else:
         st.text("[Logo not found]")
 with col2:
@@ -121,8 +125,8 @@ if st.session_state.get("force_reload"):
 
 # === SIDEBAR ===
 with st.sidebar:
-    if os.path.exists("logo.png"):
-        st.image("logo.png", width=180)
+    if logo_path.exists():
+        st.image(str(logo_path), width=180)
     else:
         st.text("[Logo not found]")
     st.markdown("<h3 style='text-align:center; color:white;'>JUBILEE TEXTILE PROCESSORS</h3>", unsafe_allow_html=True)
@@ -144,6 +148,7 @@ with st.sidebar:
 
 # === CONTINUE AS BEFORE ===
 # (Your form, table, edit, delete, export, etc. sections continue from here)
+
 
 
 # === DATA TABLE ===
