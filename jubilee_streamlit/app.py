@@ -31,9 +31,14 @@ drive_folder_id = st.secrets["drive"]["folder_id"]
 st.set_page_config(
     page_title="Jubilee Inventory",
     page_icon="logo.png",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"  # Ensures sidebar remains visible by default
 )
 
+# === SIDEBAR TOGGLE BUTTON ===
+with st.sidebar:
+    if st.button("🔁 Toggle Sidebar"):
+        st.markdown("<script>document.body.classList.toggle('stSidebar');</script>", unsafe_allow_html=True)
 # === PATH CONFIG ===
 logo_path = Path(__file__).parent / "logo.png"
 
