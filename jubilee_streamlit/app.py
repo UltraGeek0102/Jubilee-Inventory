@@ -35,6 +35,11 @@ st.set_page_config(
     initial_sidebar_state="expanded"  # Ensures sidebar remains visible by default
 )
 
+# === SIDEBAR TOGGLE BUTTON ===
+with st.sidebar:
+    if st.button("🔁 Toggle Sidebar"):
+        st.markdown("<script>document.body.classList.toggle('stSidebar');</script>", unsafe_allow_html=True)
+
 
 # === PATH CONFIG ===
 logo_path = Path(__file__).parent / "logo.png"
@@ -173,10 +178,7 @@ with st.sidebar:
     with st.expander("🧾 Printable Report"):
         html_report = generate_html_report(filtered_df[required_columns])
         st.download_button("Download HTML Report", html_report.encode(), "jubilee_inventory_report.html", "text/html")
-        # === SIDEBAR TOGGLE BUTTON ===
-    with st.sidebar:
-        if st.button("🔁 Toggle Sidebar"):
-            st.markdown("<script>document.body.classList.toggle('stSidebar');</script>", unsafe_allow_html=True)
+        
 # === SCROLLABLE DATA TABLE ===
 st.markdown("""
     <style>
