@@ -54,16 +54,22 @@ st.markdown("""
         }
     </style>
     <script>
-        function toggleSidebar() {
+        const observer = new MutationObserver(() => {
+            const btn = window.parent.document.querySelector(".sidebar-toggle-button");
             const sidebar = window.parent.document.querySelector('section[data-testid="stSidebar"]');
-            if (sidebar.style.display === 'none') {
-                sidebar.style.display = 'block';
-            } else {
-                sidebar.style.display = 'none';
+            if (btn && sidebar) {
+                btn.onclick = () => {
+                    if (sidebar.style.display === 'none') {
+                        sidebar.style.display = 'block';
+                    } else {
+                        sidebar.style.display = 'none';
+                    }
+                }
             }
-        }
+        });
+        observer.observe(window.parent.document.body, { childList: true, subtree: true });
     </script>
-    <button class="sidebar-toggle-button" onclick="toggleSidebar()">🔁 Toggle Sidebar</button>
+    <button class="sidebar-toggle-button">🔁 Toggle Sidebar</button>
 """, unsafe_allow_html=True)
 
 # === PATH CONFIG ===
@@ -171,7 +177,7 @@ st.markdown("""
 col1, col2 = st.columns([1, 6])
 with col1:
     if logo_path.exists():
-        st.image(str(logo_path), width=130)
+        st.image(str(logo_path), width=160)
     else:
         st.markdown("<p style='color:red;'>[Logo not found]</p>", unsafe_allow_html=True)
 with col2:
@@ -182,8 +188,8 @@ with st.sidebar:
     if logo_path.exists():
         logo_base64 = base64.b64encode(open(str(logo_path), "rb").read()).decode()
         st.markdown(f"""
-        <div style='display:flex; justify-content:center;'>
-            <img src='data:image/png;base64,{logo_base64}' width='150'>
+        <div style='display:flex; justify-content:center; padding-top: 10px;'>
+            <img src='data:image/png;base64,{logo_base64}' width='160'>
         </div>
         """, unsafe_allow_html=True)
     else:
@@ -245,6 +251,7 @@ with st.container():
             .to_html(escape=False, index=False)
 
     st.markdown('<div class="scroll-table-wrapper">' + html_table + '</div>', unsafe_allow_html=True)
+
 
 # === FORM: ADD / EDIT PRODUCT ===
 st.markdown("---")
