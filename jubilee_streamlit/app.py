@@ -36,56 +36,55 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# === TOGGLE SIDEBAR BUTTON WITH ANIMATION ===
+# === TOGGLE SIDEBAR BUTTON: Fixed for visibility when sidebar is closed ===
 st.markdown("""
     <style>
         .sidebar-toggle-button {
             position: fixed;
-            top: 10px;
-            left: 10px;
-            z-index: 10000;
+            top: 12px;
+            left: 12px;
+            z-index: 9999;
             background-color: #222;
             color: white;
-            border: none;
             padding: 8px 12px;
             border-radius: 5px;
             font-weight: bold;
             cursor: pointer;
-            transition: all 0.3s ease-in-out;
+            border: 1px solid #555;
+        }
+
+        /* Optional: add transition for sidebar animation */
+        [data-testid="stSidebar"] {
+            transition: all 0.4s ease;
         }
     </style>
     <script>
-        window.addEventListener('DOMContentLoaded', (event) => {
-            const btn = document.createElement("button");
-            btn.innerText = "🔁 Toggle Sidebar";
-            btn.className = "sidebar-toggle-button";
-            btn.onclick = function() {
-                const sidebar = parent.document.querySelector('section[data-testid="stSidebar"]');
+        const injectToggleButton = () => {
+            if (window.parent !== window) return;
+
+            const doc = window.parent.document;
+            const existing = doc.getElementById("sidebar-toggle-btn");
+            if (existing) return;
+
+            const button = doc.createElement("button");
+            button.id = "sidebar-toggle-btn";
+            button.innerText = "🔁 Toggle Sidebar";
+            button.className = "sidebar-toggle-button";
+            button.onclick = () => {
+                const sidebar = doc.querySelector("section[data-testid='stSidebar']");
                 if (sidebar) {
-                    if (sidebar.style.display === 'none') {
-                        sidebar.style.display = 'block';
-                        sidebar.style.animation = 'slideIn 0.3s forwards';
+                    if (sidebar.style.display === "none") {
+                        sidebar.style.display = "block";
                     } else {
-                        sidebar.style.animation = 'slideOut 0.3s forwards';
-                        setTimeout(() => sidebar.style.display = 'none', 280);
+                        sidebar.style.display = "none";
                     }
                 }
             };
-            document.body.appendChild(btn);
+            doc.body.appendChild(button);
+        };
 
-            const style = document.createElement('style');
-            style.innerHTML = `
-                @keyframes slideIn {
-                    from { transform: translateX(-250px); opacity: 0; }
-                    to { transform: translateX(0); opacity: 1; }
-                }
-                @keyframes slideOut {
-                    from { transform: translateX(0); opacity: 1; }
-                    to { transform: translateX(-250px); opacity: 0; }
-                }
-            `;
-            document.head.appendChild(style);
-        });
+        window.addEventListener("DOMContentLoaded", injectToggleButton);
+        setTimeout(injectToggleButton, 1000);
     </script>
 """, unsafe_allow_html=True)
 
