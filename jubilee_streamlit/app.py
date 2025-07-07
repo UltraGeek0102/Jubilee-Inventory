@@ -68,13 +68,44 @@ st.markdown("""
 def make_clickable(url):
     return f'<img src="{url}" style="width:100%; max-width:100px; height:auto;">' if url else ""
 
-# === PAGE CONFIG ===
+# === DYNAMIC SIDEBAR CONFIG ===
+query_params = st.experimental_get_query_params()
+sidebar_state = query_params.get("sidebar", ["collapsed"])[0]
+
 st.set_page_config(
     page_title="Jubilee Inventory",
     page_icon="logo.png",
-    layout="wide",
-    initial_sidebar_state="collapsed"
+    layout="centered",  # or "wide" if preferred
+    initial_sidebar_state=sidebar_state
 )
+
+# === FIXED TOGGLE SIDEBAR BUTTON ===
+toggle_label = "📁 Open Sidebar" if sidebar_state == "collapsed" else "❌ Close Sidebar"
+if st.button(toggle_label, key="toggle_sidebar"):
+    new_state = "expanded" if sidebar_state == "collapsed" else "collapsed"
+    st.experimental_set_query_params(sidebar=new_state)
+    st.rerun()
+
+# === STYLE FOR FIXED BUTTON ===
+st.markdown("""
+    <style>
+    div[data-testid="stButton"][key="toggle_sidebar"] {
+        position: fixed;
+        top: 15px;
+        left: 15px;
+        z-index: 9999;
+    }
+    div[data-testid="stButton"][key="toggle_sidebar"] button {
+        background-color: #333;
+        color: white;
+        border-radius: 6px;
+        font-weight: bold;
+        padding: 8px 14px;
+        border: none;
+        box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+    }
+    </style>
+""", unsafe_allow_html=True)
 
 # === TOGGLE SIDEBAR BUTTON: Fixed for visibility when sidebar is closed ===
 st.markdown("""
