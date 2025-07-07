@@ -29,7 +29,7 @@ drive_folder_id = st.secrets["drive"]["folder_id"]
 # === PAGE CONFIG ===
 st.set_page_config(
     page_title="Jubilee Inventory",
-    page_icon="./favicon.ico",
+    page_icon="favicon.ico",
     layout="wide"
 )
 
@@ -92,11 +92,13 @@ def generate_html_report(data):
 # === INIT ===
 st.title("\U0001F4E6 Jubilee Inventory Management System")
 
-# === BRAND HEADER (Company Logo + Name) ===
+# === BRAND HEADER ===
 col1, col2 = st.columns([1, 6])
 with col1:
     if os.path.exists("logo.png"):
         st.image("logo.png", width=60)
+    else:
+        st.text("[Logo not found]")
 with col2:
     st.markdown("<h1 style='margin-top: 20px;'>JUBILEE TEXTILE PROCESSORS</h1>", unsafe_allow_html=True)
 
@@ -117,10 +119,12 @@ def safe_rerun():
 if st.session_state.get("force_reload"):
     safe_rerun()
 
-# === SIDEBAR FILTERS ===
+# === SIDEBAR ===
 with st.sidebar:
     if os.path.exists("logo.png"):
         st.image("logo.png", width=180)
+    else:
+        st.text("[Logo not found]")
     st.markdown("<h3 style='text-align:center; color:white;'>JUBILEE TEXTILE PROCESSORS</h3>", unsafe_allow_html=True)
     st.header("\U0001F50D Filter")
     type_filter = st.selectbox("Type", ["All"] + sorted(df["Type"].dropna().unique().tolist()))
@@ -137,6 +141,10 @@ with st.sidebar:
 
     st.metric("Total PCS", int(df["PCS"].fillna(0).sum()))
     st.metric("Total Value", f"₹{df['Total'].fillna(0).sum():,.2f}")
+
+# === CONTINUE AS BEFORE ===
+# (Your form, table, edit, delete, export, etc. sections continue from here)
+
 
 # === DATA TABLE ===
 st.markdown("### 📊 Inventory Table")
