@@ -36,7 +36,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# === TOGGLE SIDEBAR BUTTON (Streamlit-native workaround) ===
+# === TOGGLE SIDEBAR BUTTON (Functional with Streamlit iframe workaround) ===
 st.markdown("""
     <style>
         .sidebar-toggle-button {
@@ -53,23 +53,20 @@ st.markdown("""
             cursor: pointer;
         }
     </style>
+    <iframe id="sidebar-frame" style="display:none;"></iframe>
     <script>
-        const observer = new MutationObserver(() => {
-            const btn = window.parent.document.querySelector(".sidebar-toggle-button");
-            const sidebar = window.parent.document.querySelector('section[data-testid="stSidebar"]');
-            if (btn && sidebar) {
-                btn.onclick = () => {
-                    if (sidebar.style.display === 'none') {
-                        sidebar.style.display = 'block';
-                    } else {
-                        sidebar.style.display = 'none';
-                    }
-                }
+        const btn = document.createElement("button");
+        btn.innerText = "🔁 Toggle Sidebar";
+        btn.className = "sidebar-toggle-button";
+        btn.onclick = function() {
+            const iframe = parent.document.querySelector('iframe');
+            const sidebar = iframe?.contentDocument?.querySelector('section[data-testid="stSidebar"]');
+            if (sidebar) {
+                sidebar.style.display = sidebar.style.display === 'none' ? 'block' : 'none';
             }
-        });
-        observer.observe(window.parent.document.body, { childList: true, subtree: true });
+        };
+        document.body.appendChild(btn);
     </script>
-    <button class="sidebar-toggle-button">🔁 Toggle Sidebar</button>
 """, unsafe_allow_html=True)
 
 # === PATH CONFIG ===
@@ -188,8 +185,8 @@ with st.sidebar:
     if logo_path.exists():
         logo_base64 = base64.b64encode(open(str(logo_path), "rb").read()).decode()
         st.markdown(f"""
-        <div style='display:flex; justify-content:center; padding-top: 10px;'>
-            <img src='data:image/png;base64,{logo_base64}' width='160'>
+        <div style='display:flex; justify-content:center; padding-bottom: 10px;'>
+            <img src='data:image/png;base64,{logo_base64}' width='150'>
         </div>
         """, unsafe_allow_html=True)
     else:
