@@ -174,7 +174,7 @@ st.markdown("""
 col1, col2 = st.columns([1, 6])
 with col1:
     if logo_path.exists():
-        st.image(str(logo_path), width=80)
+        st.image(str(logo_path), width=100)
     else:
         st.markdown("<p style='color:red;'>[Logo not found]</p>", unsafe_allow_html=True)
 with col2:
@@ -183,7 +183,11 @@ with col2:
 # === SIDEBAR ===
 with st.sidebar:
     if logo_path.exists():
-        st.image(str(logo_path), width=120)
+        st.markdown("""
+        <div style='display:flex; justify-content:center;'>
+            <img src='data:image/png;base64,""" + base64.b64encode(open(logo_path, "rb").read()).decode() + """' width='150'>
+        </div>
+        """, unsafe_allow_html=True)
     else:
         st.text("[Logo not found]")
     st.markdown("<h3 style='text-align:center; color:white;'>JUBILEE TEXTILE PROCESSORS</h3>", unsafe_allow_html=True)
@@ -243,6 +247,7 @@ with st.container():
             .to_html(escape=False, index=False)
 
     st.markdown('<div class="scroll-table-wrapper">' + html_table + '</div>', unsafe_allow_html=True)
+
 
 
 
