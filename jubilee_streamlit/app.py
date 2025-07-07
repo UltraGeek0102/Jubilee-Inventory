@@ -173,22 +173,10 @@ with st.sidebar:
     with st.expander("🧾 Printable Report"):
         html_report = generate_html_report(filtered_df[required_columns])
         st.download_button("Download HTML Report", html_report.encode(), "jubilee_inventory_report.html", "text/html")
-
-    # === SIDEBAR TOGGLE BUTTON ===
+        # === SIDEBAR TOGGLE BUTTON ===
     with st.sidebar:
         if st.button("🔁 Toggle Sidebar"):
             st.markdown("<script>document.body.classList.toggle('stSidebar');</script>", unsafe_allow_html=True)
-
-
-# === PAGE CONFIG ===
-st.set_page_config(
-    page_title="Jubilee Inventory",
-    page_icon="logo.png",
-    layout="wide",
-    initial_sidebar_state="expanded"  # Ensures sidebar remains visible by default
-)
-
-
 # === SCROLLABLE DATA TABLE ===
 st.markdown("""
     <style>
@@ -225,6 +213,7 @@ with st.container():
 
     st.markdown('<div class="scroll-table-wrapper">' + html_table + '</div>', unsafe_allow_html=True)
 # jubilee_inventory_app.py
+
 
 # === FORM: ADD / EDIT PRODUCT ===
 st.markdown("---")
