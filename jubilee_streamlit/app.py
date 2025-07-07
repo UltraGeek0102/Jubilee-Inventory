@@ -21,14 +21,14 @@ scopes = [
 # === AUTH ===
 creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scopes)
 client = gspread.authorize(creds)
-sheet = client.open("jubilee-inventory").sheet1
+sheet = client.open(SHEET_NAME).sheet1
 drive_service = build("drive", "v3", credentials=creds)
 drive_folder_id = st.secrets["drive"]["folder_id"]
 
 # === PAGE CONFIG ===
 st.set_page_config(
     page_title="Jubilee Inventory",
-    page_icon="favicon.ico",
+    page_icon="./favicon.ico",
     layout="wide"
 )
 
@@ -92,12 +92,11 @@ def generate_html_report(data):
 st.title("\U0001F4E6 Jubilee Inventory Management System")
 
 # === BRAND HEADER (Company Logo + Name) ===
-st.markdown(f"""
-    <div style='display: flex; align-items: center; gap: 16px; margin-top: -30px;'>
-        <img src="logo.png" width="60"/>
-        <h1 style='margin: 0; font-size: 32px;'>JUBILEE TEXTILE PROCESSORS</h1>
-    </div>
-""", unsafe_allow_html=True)
+col1, col2 = st.columns([1, 6])
+with col1:
+    st.image("./logo.png", width=60)
+with col2:
+    st.markdown("<h1 style='margin-top: 20px;'>JUBILEE TEXTILE PROCESSORS</h1>", unsafe_allow_html=True)
 
 required_columns = ["D.NO.", "Company", "Type", "PCS", "Rate", "Total", "Matching", "Image", "Created", "Updated", "Status"]
 df = load_data()
@@ -118,7 +117,7 @@ if st.session_state.get("force_reload"):
 
 # === SIDEBAR FILTERS ===
 with st.sidebar:
-    st.image("logo.png", width=180)
+    st.image("./logo.png", width=180)
     st.markdown("<h3 style='text-align:center; color:white;'>JUBILEE TEXTILE PROCESSORS</h3>", unsafe_allow_html=True)
     st.header("\U0001F50D Filter")
     type_filter = st.selectbox("Type", ["All"] + sorted(df["Type"].dropna().unique().tolist()))
