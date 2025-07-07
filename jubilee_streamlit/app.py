@@ -32,34 +32,42 @@ st.set_page_config(
     page_title="Jubilee Inventory",
     page_icon="logo.png",
     layout="wide",
-    initial_sidebar_state="expanded"  # Ensures sidebar remains visible by default
+    initial_sidebar_state="expanded"
 )
 
-# === TOGGLE SIDEBAR BUTTON OUTSIDE SIDEBAR ===
-with st.container():
-    st.markdown("""
-        <style>
-        .toggle-button {
+# === TOGGLE SIDEBAR BUTTON (Streamlit-native workaround) ===
+st.markdown("""
+    <style>
+        .sidebar-toggle-button {
             position: fixed;
-            top: 15px;
-            left: 15px;
-            z-index: 9999;
-            background-color: #333;
+            top: 10px;
+            left: 10px;
+            z-index: 10000;
+            background-color: #222;
             color: white;
+            border: none;
             padding: 8px 12px;
-            border-radius: 6px;
+            border-radius: 5px;
             font-weight: bold;
             cursor: pointer;
         }
-        </style>
-        <script>
+    </style>
+    <script>
+        const observer = new MutationObserver(() => {
+            const sidebar = window.parent.document.querySelector('section[data-testid="stSidebar"]');
+            const btn = window.parent.document.getElementById("sidebarToggleBtn");
+            if (sidebar && btn) {
+                sidebar.style.display = sidebar.style.display === 'none' ? 'block' : 'none';
+            }
+        });
         function toggleSidebar() {
-            const sidebar = window.parent.document.querySelector("section[data-testid='stSidebar']");
-            if (sidebar) sidebar.style.display = sidebar.style.display === 'none' ? 'block' : 'none';
+            observer.observe(window.parent.document.body, { childList: true, subtree: true });
+            const evt = new Event('click');
+            window.parent.document.querySelector("[data-testid='collapsedControl']")?.dispatchEvent(evt);
         }
-        </script>
-        <div class="toggle-button" onclick="toggleSidebar()">🔁 Toggle Sidebar</div>
-    """, unsafe_allow_html=True)
+    </script>
+    <button class="sidebar-toggle-button" onclick="toggleSidebar()">🔁 Toggle Sidebar</button>
+""", unsafe_allow_html=True)
 
 # === PATH CONFIG ===
 logo_path = Path(__file__).parent / "logo.png"
@@ -166,7 +174,7 @@ st.markdown("""
 col1, col2 = st.columns([1, 6])
 with col1:
     if logo_path.exists():
-        st.image(str(logo_path), width=40)
+        st.image(str(logo_path), width=80)
     else:
         st.markdown("<p style='color:red;'>[Logo not found]</p>", unsafe_allow_html=True)
 with col2:
@@ -180,8 +188,6 @@ with st.sidebar:
         st.text("[Logo not found]")
     st.markdown("<h3 style='text-align:center; color:white;'>JUBILEE TEXTILE PROCESSORS</h3>", unsafe_allow_html=True)
     st.header("🔍 Filter")
-    # type_filter and search already handled
-
     st.metric("Total PCS", int(df["PCS"].fillna(0).sum()))
     st.metric("Total Value", f"₹{df['Total'].fillna(0).sum():,.2f}")
 
@@ -237,6 +243,7 @@ with st.container():
             .to_html(escape=False, index=False)
 
     st.markdown('<div class="scroll-table-wrapper">' + html_table + '</div>', unsafe_allow_html=True)
+
 
 
 # === FORM: ADD / EDIT PRODUCT ===
