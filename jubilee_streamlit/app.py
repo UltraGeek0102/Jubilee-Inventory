@@ -68,9 +68,9 @@ st.markdown("""
 def make_clickable(url):
     return f'<img src="{url}" style="width:100%; max-width:100px; height:auto;">' if url else ""
 
-# === DYNAMIC SIDEBAR CONFIG ===
-query_params = st.experimental_get_query_params()
-sidebar_state = query_params.get("sidebar", ["collapsed"])[0]
+# === DYNAMIC SIDEBAR CONFIG (Updated for Streamlit >=1.31) ===
+query_params = st.query_params
+sidebar_state = query_params.get("sidebar", "collapsed")
 
 st.set_page_config(
     page_title="Jubilee Inventory",
@@ -83,7 +83,7 @@ st.set_page_config(
 toggle_label = "📁 Open Sidebar" if sidebar_state == "collapsed" else "❌ Close Sidebar"
 if st.button(toggle_label, key="toggle_sidebar"):
     new_state = "expanded" if sidebar_state == "collapsed" else "collapsed"
-    st.experimental_set_query_params(sidebar=new_state)
+    st.query_params["sidebar"] = new_state
     st.rerun()
 
 # === STYLE FOR FIXED BUTTON ===
@@ -106,6 +106,7 @@ st.markdown("""
     }
     </style>
 """, unsafe_allow_html=True)
+
 
 # === TOGGLE SIDEBAR BUTTON: Fixed for visibility when sidebar is closed ===
 st.markdown("""
