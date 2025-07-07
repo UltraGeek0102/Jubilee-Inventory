@@ -33,7 +33,7 @@ st.set_page_config(
     page_title="Jubilee Inventory",
     page_icon="logo.png",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
 # === TOGGLE SIDEBAR BUTTON: Fixed for visibility when sidebar is closed ===
