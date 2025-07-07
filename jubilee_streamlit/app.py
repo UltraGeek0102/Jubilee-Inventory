@@ -12,6 +12,7 @@ from datetime import datetime
 from thefuzz import process
 import os
 from pathlib import Path
+import base64
 
 # === CONFIG ===
 SHEET_NAME = "jubilee-inventory"
@@ -53,17 +54,13 @@ st.markdown("""
         }
     </style>
     <script>
-        const observer = new MutationObserver(() => {
-            const sidebar = window.parent.document.querySelector('section[data-testid="stSidebar"]');
-            const btn = window.parent.document.getElementById("sidebarToggleBtn");
-            if (sidebar && btn) {
-                sidebar.style.display = sidebar.style.display === 'none' ? 'block' : 'none';
-            }
-        });
         function toggleSidebar() {
-            observer.observe(window.parent.document.body, { childList: true, subtree: true });
-            const evt = new Event('click');
-            window.parent.document.querySelector("[data-testid='collapsedControl']")?.dispatchEvent(evt);
+            const sidebar = window.parent.document.querySelector('section[data-testid="stSidebar"]');
+            if (sidebar.style.display === 'none') {
+                sidebar.style.display = 'block';
+            } else {
+                sidebar.style.display = 'none';
+            }
         }
     </script>
     <button class="sidebar-toggle-button" onclick="toggleSidebar()">🔁 Toggle Sidebar</button>
@@ -174,7 +171,7 @@ st.markdown("""
 col1, col2 = st.columns([1, 6])
 with col1:
     if logo_path.exists():
-        st.image(str(logo_path), width=100)
+        st.image(str(logo_path), width=130)
     else:
         st.markdown("<p style='color:red;'>[Logo not found]</p>", unsafe_allow_html=True)
 with col2:
@@ -183,9 +180,10 @@ with col2:
 # === SIDEBAR ===
 with st.sidebar:
     if logo_path.exists():
-        st.markdown("""
+        logo_base64 = base64.b64encode(open(str(logo_path), "rb").read()).decode()
+        st.markdown(f"""
         <div style='display:flex; justify-content:center;'>
-            <img src='data:image/png;base64,""" + base64.b64encode(open(logo_path, "rb").read()).decode() + """' width='150'>
+            <img src='data:image/png;base64,{logo_base64}' width='150'>
         </div>
         """, unsafe_allow_html=True)
     else:
@@ -247,9 +245,6 @@ with st.container():
             .to_html(escape=False, index=False)
 
     st.markdown('<div class="scroll-table-wrapper">' + html_table + '</div>', unsafe_allow_html=True)
-
-
-
 
 # === FORM: ADD / EDIT PRODUCT ===
 st.markdown("---")
