@@ -10,6 +10,7 @@ from PIL import Image
 import io
 from datetime import datetime
 from thefuzz import process
+import os
 
 # === CONFIG ===
 SHEET_NAME = "jubilee-inventory"
@@ -94,17 +95,18 @@ st.title("\U0001F4E6 Jubilee Inventory Management System")
 # === BRAND HEADER (Company Logo + Name) ===
 col1, col2 = st.columns([1, 6])
 with col1:
-    st.image("./logo.png", width=60)
+    if os.path.exists("logo.png"):
+        st.image("logo.png", width=60)
 with col2:
     st.markdown("<h1 style='margin-top: 20px;'>JUBILEE TEXTILE PROCESSORS</h1>", unsafe_allow_html=True)
 
 required_columns = ["D.NO.", "Company", "Type", "PCS", "Rate", "Total", "Matching", "Image", "Created", "Updated", "Status"]
 df = load_data()
+
 if st.session_state.get("force_reload"):
     st.session_state.force_reload = False
     st.experimental_rerun()
 
-# Safe one-time rerun trigger
 def safe_rerun():
     st.session_state.force_reload = False
     try:
@@ -117,7 +119,8 @@ if st.session_state.get("force_reload"):
 
 # === SIDEBAR FILTERS ===
 with st.sidebar:
-    st.image("./logo.png", width=180)
+    if os.path.exists("logo.png"):
+        st.image("logo.png", width=180)
     st.markdown("<h3 style='text-align:center; color:white;'>JUBILEE TEXTILE PROCESSORS</h3>", unsafe_allow_html=True)
     st.header("\U0001F50D Filter")
     type_filter = st.selectbox("Type", ["All"] + sorted(df["Type"].dropna().unique().tolist()))
@@ -133,17 +136,9 @@ with st.sidebar:
         filtered_df = df[df["D.NO."].isin(hits) | df["Company"].isin(hits)]
 
     st.metric("Total PCS", int(df["PCS"].fillna(0).sum()))
-    st.metric("Total Value", f"\u20B9{df['Total'].fillna(0).sum():,.2f}")
-
-# Continue with your remaining app code from here...
-
+    st.metric("Total Value", f"₹{df['Total'].fillna(0).sum():,.2f}")
 
 # === DATA TABLE ===
-# Inventory Table rendered below only after form submission status is known, unsafe_allow_html=True)
-
-# === EXPORT ===
-
-# === DATA TABLE (NOW MOVED HERE AFTER submission state is known) ===
 st.markdown("### 📊 Inventory Table")
 highlight_dno = st.session_state.get("highlight_dno")
 highlighted_df = filtered_df.copy()
@@ -157,28 +152,12 @@ if highlight_dno:
         .to_html(escape=False, index=False),
         unsafe_allow_html=True
     )
-    st.session_state.highlight_dno = None  # reset highlight after display
+    st.session_state.highlight_dno = None
 else:
     st.markdown(
         filtered_df.assign(Image=filtered_df["Image"].apply(make_clickable)).to_html(escape=False, index=False),
         unsafe_allow_html=True
     )
-with st.expander("⬇️ Export Options"):
-    export_format = st.radio("Select format", ["CSV", "Excel"], horizontal=True)
-    export_df = df[required_columns]
-    if export_format == "CSV":
-        csv = export_df.to_csv(index=False).encode("utf-8")
-        st.download_button("Download CSV", csv, "jubilee_inventory.csv", "text/csv")
-    else:
-        from io import BytesIO
-        excel_io = BytesIO()
-        with pd.ExcelWriter(excel_io, engine="xlsxwriter") as writer:
-            export_df.to_excel(writer, index=False, sheet_name="Inventory")
-        st.download_button("Download Excel", excel_io.getvalue(), "jubilee_inventory.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
-with st.expander("\U0001F5A8️ Printable Report"):
-    html_report = generate_html_report(df[required_columns])
-    st.download_button("Download HTML Report", html_report.encode(), "jubilee_inventory_report.html", "text/html")
 
 # === FORM ===
 st.markdown("---")
@@ -240,10 +219,10 @@ with st.form("product_form"):
                 "Updated": now, "Created": get_default("Created", now), "Status": calculate_status(total_pcs)
             }])], ignore_index=True)
             save_data(df)
-        st.success("Changes saved successfully.")
-        st.toast("✅ Product updated.")
-        st.session_state.force_reload = True
-        st.session_state.highlight_dno = dno.strip().upper()
+            st.success("Changes saved successfully.")
+            st.toast("✅ Product updated.")
+            st.session_state.force_reload = True
+            st.session_state.highlight_dno = dno.strip().upper()
 
 # === DELETE ===
 st.markdown("---")
