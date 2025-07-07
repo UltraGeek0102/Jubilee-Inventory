@@ -23,7 +23,7 @@ scopes = [
 # === AUTH ===
 creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scopes)
 client = gspread.authorize(creds)
-sheet = client.open(SHEET_NAME).sheet1
+sheet = client.open("jubilee-inventory").sheet1
 drive_service = build("drive", "v3", credentials=creds)
 drive_folder_id = st.secrets["drive"]["folder_id"]
 
@@ -210,8 +210,6 @@ with st.container():
     st.markdown('</div>', unsafe_allow_html=True)
 
 # jubilee_inventory_app.py
-
-...[previous code remains unchanged]...
 
 # === FORM: ADD / EDIT PRODUCT ===
 st.markdown("---")
