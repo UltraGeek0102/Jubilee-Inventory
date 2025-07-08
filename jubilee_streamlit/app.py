@@ -324,20 +324,30 @@ with st.sidebar:
 st.markdown("""
     <style>
     .scroll-table-wrapper {
-        max-height: 400px;
-        overflow-y: scroll;
+        max-height: 600px;
+        overflow-y: auto;
         overflow-x: auto;
         border: 1px solid #444;
-        border-radius: 6px;
+        border-radius: 8px;
         padding: 10px;
         background-color: #111;
     }
     .scroll-table-wrapper table {
         color: white;
-        width: 100%;
+        font-size: 15px;
+        min-width: 1000px;
+        border-spacing: 0;
+        border-collapse: collapse;
+    }
+    .scroll-table-wrapper th, .scroll-table-wrapper td {
+        padding: 8px 12px;
+    }
+    .scroll-table-wrapper thead {
+        background-color: #222;
     }
     </style>
 """, unsafe_allow_html=True)
+
 
 st.markdown("### 📊 Inventory Table")
 highlight_dno = st.session_state.get("highlight_dno")
@@ -345,7 +355,8 @@ highlighted_df = filtered_df.copy()
 
 with st.container():
     if highlight_dno:
-        highlighted_df["__highlight__"] = highlighted_df["D.NO."].apply(lambda x: "background-color: #ffe599" if x == highlight_dno else "")
+        highlighted_df["__highlight__"] = highlighted_df["D.NO."].apply(
+            lambda x: "background-color: #ffe599" if x == highlight_dno else "")
         html_table = highlighted_df.drop(columns="__highlight__") \
             .assign(Image=highlighted_df["Image"].apply(make_clickable)) \
             .style.apply(lambda x: highlighted_df["__highlight__"], axis=1) \
@@ -355,7 +366,6 @@ with st.container():
             .to_html(escape=False, index=False)
 
     st.markdown('<div class="scroll-table-wrapper">' + html_table + '</div>', unsafe_allow_html=True)
-
 
 
 # === FORM: ADD / EDIT PRODUCT ===
