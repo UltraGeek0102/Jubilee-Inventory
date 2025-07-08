@@ -444,25 +444,31 @@ with st.form("product_form"):
         if not company or not dno:
             st.warning("Company and D.NO. are required.")
         else:
+            mode = "edit" if form_mode == "Edit Existing" else "create"
+
+            # ✅ STEP 2: Handle image logic for create/edit mode
             if mode == "edit":
                 if image_file is not None:
-            # User uploaded new image, so upload to Drive
                     image_url = upload_image(image_file)
                 else:
-        # No new image uploaded; keep the old image
-                    image_url = selected_row["Image"] if selected_row is not None else ""
+                    image_url = selected_data.get("Image", "")
             else:
-            # Create mode: always upload if there's an image
-                    image_url = upload_image(image_file) if image_file else ""
-            if image_file 
-            else get_default("Image", "")
+                image_url = upload_image(image_file) if image_file else ""
+
             now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             df = df[df["D.NO."] != dno]
             df = pd.concat([df, pd.DataFrame([{
-                "D.NO.": dno.strip().upper(), "Company": company.strip().upper(), "Type": type_,
-                "PCS": total_pcs, "Rate": rate, "Total": rate * total_pcs,
-                "Matching": ", ".join(match_entries), "Image": image_url,
-                "Updated": now, "Created": get_default("Created", now), "Status": calculate_status(total_pcs)
+                "D.NO.": dno.strip().upper(),
+                "Company": company.strip().upper(),
+                "Type": type_,
+                "PCS": total_pcs,
+                "Rate": rate,
+                "Total": rate * total_pcs,
+                "Matching": ", ".join(match_entries),
+                "Image": image_url,
+                "Updated": now,
+                "Created": get_default("Created", now),
+                "Status": calculate_status(total_pcs)
             }])], ignore_index=True)
             save_data(df)
             st.success("Changes saved successfully.")
