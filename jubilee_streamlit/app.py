@@ -8,6 +8,10 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
 from googleapiclient.errors import HttpError
 from PIL import Image
+# === OAUTH-BASED GOOGLE DRIVE AUTH ===
+from google_auth_oauthlib.flow import Flow
+from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
 import io
 from datetime import datetime
 from thefuzz import process
@@ -28,6 +32,38 @@ client = gspread.authorize(creds)
 sheet = client.open("jubilee-inventory").sheet1
 drive_service = build("drive", "v3", credentials=creds)
 drive_folder_id = st.secrets["drive"]["folder_id"]
+
+# === FUNCTION TO INITIALIZE GOOGLE DRIVE SERVICE ===
+def get_drive_service():
+    if "drive_creds" not in st.session_state:
+        flow = Flow.from_client_config(
+            {
+                "web": {
+                    "client_id": st.secrets["google_oauth"]["client_id"],
+                    "client_secret": st.secrets["google_oauth"]["client_secret"],
+                    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                    "token_uri": "https://oauth2.googleapis.com/token",
+                    "redirect_uris": ["http://localhost:8501"]
+                }
+            },
+            scopes=["https://www.googleapis.com/auth/drive.file"],
+            redirect_uri="http://localhost:8501"
+        )
+
+        auth_url, _ = flow.authorization_url(prompt="consent")
+        st.warning("Authorize the app to upload to your Google Drive.")
+        st.markdown(f"[Click here to authorize]({auth_url})", unsafe_allow_html=True)
+
+        code = st.text_input("Paste the code here after authorization:")
+        if code:
+            flow.fetch_token(code=code)
+            creds = flow.credentials
+            st.session_state["drive_creds"] = creds
+    else:
+        creds = st.session_state["drive_creds"]
+
+    return build("drive", "v3", credentials=creds)
+
 
 # === MOBILE RESPONSIVE STYLING ===
 st.markdown("""
@@ -182,40 +218,39 @@ def save_data(df):
     df = df[required_columns]
     sheet.clear()
     sheet.update([df.columns.tolist()] + df.astype(str).values.tolist())
-
+# === UPDATED UPLOAD IMAGE FUNCTION ===
 def upload_image(image_file):
+    if image_file is None:
+        return ""
+
+    drive_service = get_drive_service()
+
+    image_file.seek(0)
+    file_bytes = image_file.read()
+    image_file.seek(0)
+
+    file_metadata = {
+        "name": image_file.name,
+        "parents": [st.secrets["drive"]["folder_id"]] if "folder_id" in st.secrets["drive"] else []
+    }
+
+    media = MediaIoBaseUpload(
+        io.BytesIO(file_bytes),
+        mimetype=image_file.type,
+        resumable=True
+    )
+
     try:
-        if image_file is None:
-            return ""
-
-        image_file.seek(0)
-        file_bytes = image_file.read()
-        image_file.seek(0)
-
-        file_metadata = {
-            "name": image_file.name,
-            "parents": [st.secrets["drive"]["folder_id"]],
-            "driveId": st.secrets["drive"]["folder_id"]
-        }
-
-        media = MediaIoBaseUpload(
-            io.BytesIO(file_bytes),
-            mimetype=image_file.type,
-            resumable=True
-        )
-
         uploaded = drive_service.files().create(
             body=file_metadata,
             media_body=media,
-            fields="id",
-            supportsAllDrives=True
+            fields="id"
         ).execute()
-
         file_id = uploaded.get("id")
         return f"https://drive.google.com/uc?id={file_id}"
 
-    except Exception as error:
-        st.error(f"❌ Google Drive upload failed: {error}")
+    except Exception as e:
+        st.error(f"❌ Google Drive upload failed: {e}")
         return ""
 
 def make_clickable(url):
