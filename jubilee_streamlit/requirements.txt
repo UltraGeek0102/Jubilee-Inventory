@@ -8,3 +8,4 @@ thefuzz
 Pillow
 altair
 openpyxl
+XlsxWriter
