@@ -183,19 +183,38 @@ def save_data(df):
     sheet.update([df.columns.tolist()] + df.astype(str).values.tolist())
 
 def upload_image(image_file):
-    if not image_file:
+    try:
+        if image_file is None:
+            return ""
+
+        # Reset file pointer
+        image_file.seek(0)
+        file_bytes = image_file.read()
+        image_file.seek(0)
+
+        file_metadata = {
+            "name": image_file.name,
+            "parents": [st.secrets["drive"]["folder_id"]],
+        }
+
+        media = MediaIoBaseUpload(
+            io.BytesIO(file_bytes),
+            mimetype=image_file.type,
+            resumable=True
+        )
+
+        uploaded = drive_service.files().create(
+            body=file_metadata,
+            media_body=media,
+            fields="id"
+        ).execute()
+
+        file_id = uploaded.get("id")
+        return f"https://drive.google.com/uc?id={file_id}"
+
+    except HttpError as error:
+        st.error(f"❌ Google Drive upload failed: {error}")
         return ""
-    image = Image.open(image_file).convert("RGB")
-    buf = io.BytesIO()
-    image.save(buf, format="PNG")
-    buf.seek(0)
-    filename = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{image_file.name}"
-    file_metadata = {"name": filename, "parents": [drive_folder_id], "mimeType": "image/png"}
-    media = MediaIoBaseUpload(buf, mimetype="image/png")
-    uploaded = drive_service.files().create(body=file_metadata, media_body=media, fields="id").execute()
-    file_id = uploaded.get("id")
-    drive_service.permissions().create(fileId=file_id, body={"role": "reader", "type": "anyone"}).execute()
-    return f"https://drive.google.com/uc?id={file_id}"
 
 def make_clickable(url):
     if not url:
@@ -425,7 +444,17 @@ with st.form("product_form"):
         if not company or not dno:
             st.warning("Company and D.NO. are required.")
         else:
-            image_url = upload_image(image_file) if image_file else get_default("Image", "")
+            if mode == "edit":
+                if image_file is not None:
+            # User uploaded new image, so upload to Drive
+                    image_url = upload_image(image_file)
+                else:
+        # No new image uploaded; keep the old image
+                    image_url = selected_row["Image"] if selected_row is not None else ""
+            else:
+            # Create mode: always upload if there's an image
+                    image_url = upload_image(image_file) if image_file else ""
+            if image_file else get_default("Image", "")
             now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             df = df[df["D.NO."] != dno]
             df = pd.concat([df, pd.DataFrame([{
