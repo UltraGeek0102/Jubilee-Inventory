@@ -27,7 +27,10 @@ scopes = [
 ]
 
 # === AUTH: Service Account for Google Sheets ===
-sheet_creds = ServiceAccountCredentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scopes)
+sheet_creds = Credentials.from_service_account_info(
+    st.secrets["gcp_service_account"], scopes=scopes
+)
+
 client = gspread.authorize(sheet_creds)
 sheet = client.open("jubilee-inventory").sheet1
 
