@@ -188,7 +188,6 @@ def upload_image(image_file):
         if image_file is None:
             return ""
 
-        # Reset file pointer
         image_file.seek(0)
         file_bytes = image_file.read()
         image_file.seek(0)
@@ -196,6 +195,7 @@ def upload_image(image_file):
         file_metadata = {
             "name": image_file.name,
             "parents": [st.secrets["drive"]["folder_id"]],
+            "driveId": st.secrets["drive"]["folder_id"]
         }
 
         media = MediaIoBaseUpload(
@@ -207,13 +207,14 @@ def upload_image(image_file):
         uploaded = drive_service.files().create(
             body=file_metadata,
             media_body=media,
-            fields="id"
+            fields="id",
+            supportsAllDrives=True
         ).execute()
 
         file_id = uploaded.get("id")
         return f"https://drive.google.com/uc?id={file_id}"
 
-    except HttpError as error:
+    except Exception as error:
         st.error(f"❌ Google Drive upload failed: {error}")
         return ""
 
