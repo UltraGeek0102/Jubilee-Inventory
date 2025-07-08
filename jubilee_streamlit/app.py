@@ -26,14 +26,13 @@ scopes = [
     "https://www.googleapis.com/auth/drive"
 ]
 
-# === AUTH ===
-creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scopes)
-client = gspread.authorize(creds)
+# === AUTH: Service Account for Google Sheets ===
+sheet_creds = ServiceAccountCredentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scopes)
+client = gspread.authorize(sheet_creds)
 sheet = client.open("jubilee-inventory").sheet1
-drive_service = build("drive", "v3", credentials=creds)
-drive_folder_id = st.secrets["drive"]["folder_id"]
 
-# === FUNCTION TO INITIALIZE GOOGLE DRIVE SERVICE ===
+
+# === FUNCTION TO INITIALIZE GOOGLE DRIVE SERVICE (OAuth) ===
 def get_drive_service():
     if "drive_creds" not in st.session_state:
         flow = Flow.from_client_config(
@@ -63,6 +62,7 @@ def get_drive_service():
         creds = st.session_state["drive_creds"]
 
     return build("drive", "v3", credentials=creds)
+
 
 
 # === MOBILE RESPONSIVE STYLING ===
@@ -218,7 +218,8 @@ def save_data(df):
     df = df[required_columns]
     sheet.clear()
     sheet.update([df.columns.tolist()] + df.astype(str).values.tolist())
-# === UPDATED UPLOAD IMAGE FUNCTION ===
+
+# === IMAGE UPLOAD FUNCTION ===
 def upload_image(image_file):
     if image_file is None:
         return ""
@@ -252,6 +253,7 @@ def upload_image(image_file):
     except Exception as e:
         st.error(f"❌ Google Drive upload failed: {e}")
         return ""
+
 
 def make_clickable(url):
     if not url:
