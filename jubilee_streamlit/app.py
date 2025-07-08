@@ -454,7 +454,8 @@ with st.form("product_form"):
             else:
             # Create mode: always upload if there's an image
                     image_url = upload_image(image_file) if image_file else ""
-            if image_file else get_default("Image", "")
+            if image_file 
+            else get_default("Image", "")
             now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             df = df[df["D.NO."] != dno]
             df = pd.concat([df, pd.DataFrame([{
