@@ -264,14 +264,19 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-col1, col2 = st.columns([1, 6])
+col1, col2 = st.columns([1, 5])
 with col1:
     if logo_path.exists():
-        st.image(str(logo_path), width=180)
+        st.image(str(logo_path), width=80)
     else:
         st.markdown("<p style='color:red;'>[Logo not found]</p>", unsafe_allow_html=True)
 with col2:
-    st.markdown("<h1 style='margin-top: 16px;'>JUBILEE TEXTILE PROCESSORS</h1>", unsafe_allow_html=True)
+    st.markdown("""
+        <div style='display: flex; flex-direction: column; justify-content: center; height: 100%;'>
+            <h1 style='margin: 0; font-size: 2rem;'>JUBILEE TEXTILE<br>PROCESSORS</h1>
+        </div>
+    """, unsafe_allow_html=True)
+
 
 # === SIDEBAR ===
 with st.sidebar:
