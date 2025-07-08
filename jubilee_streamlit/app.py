@@ -198,15 +198,15 @@ def upload_image(image_file):
     return f"https://drive.google.com/uc?id={file_id}"
 
 def make_clickable(url):
-    # Support both "uc?id=" and file viewer links
     if not url:
         return ""
-    if "uc?id=" in url:
-        return f'<img src="{url}" style="width: 120px; height: auto; border-radius: 6px;">'
-    if "file/d/" in url:
+    if "drive.google.com/file/d/" in url:
         file_id = url.split("/file/d/")[1].split("/")[0]
-        return f'<img src="https://drive.google.com/uc?id={file_id}" style="width: 120px; height: auto; border-radius: 6px;">'
+        return f'<img src="https://drive.google.com/uc?id={file_id}" style="width: 100px; height: auto; border-radius: 8px;">'
+    if "drive.google.com/uc?id=" in url:
+        return f'<img src="{url}" style="width: 100px; height: auto; border-radius: 8px;">'
     return ""
+
 
 
 def calculate_status(pcs):
