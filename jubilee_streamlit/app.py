@@ -388,9 +388,9 @@ with st.form("product_form"):
         # === Preview uploaded image or existing one ===
         preview_url = get_default("Image", "")
         if image_file:
-            st.image(image_file, caption="Preview (New Upload)", use_column_width=True)
+            st.image(image_file, caption="Preview (New Upload)", use_container_width=True)
         elif preview_url:
-            st.image(preview_url, caption="Preview (Current)", use_column_width=True)
+            st.image(preview_url, caption="Preview (Current)", use_container_width=True)
 
     submitted = st.form_submit_button("Save Product")
 
