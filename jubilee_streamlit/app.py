@@ -135,6 +135,11 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+# === SAFE RERUN FUNCTION ===
+def safe_rerun():
+    st.session_state.force_reload = False
+    st.rerun()
+
 # === CONTINUE WITH APP CODE (unchanged) ===
 ...
 
