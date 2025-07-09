@@ -68,7 +68,7 @@ def get_drive_service():
 
 # === MOBILE RESPONSIVE STYLING ===
 st.markdown("""
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
     <style>
         @media (max-width: 768px) {
             .block-container {
@@ -117,13 +117,13 @@ if st.button(toggle_label, key="toggle_sidebar"):
 # === STYLE FOR FIXED BUTTON ===
 st.markdown("""
     <style>
-    div[data-testid="stButton"][key="toggle_sidebar"] {
+    div[data-testid=\"stButton\"][key=\"toggle_sidebar\"] {
         position: fixed;
         top: 15px;
         left: 15px;
         z-index: 9999;
     }
-    div[data-testid="stButton"][key="toggle_sidebar"] button {
+    div[data-testid=\"stButton\"][key=\"toggle_sidebar\"] button {
         background-color: #333;
         color: white;
         border-radius: 6px;
@@ -138,10 +138,18 @@ st.markdown("""
 # === SAFE RERUN FUNCTION ===
 def safe_rerun():
     st.session_state.force_reload = False
-    st.rerun()
+    try:
+        st.rerun()
+    except Exception:
+        pass
+
+# === FORCE RERUN IF FLAGGED ===
+if st.session_state.get("force_reload"):
+    safe_rerun()
 
 # === CONTINUE WITH APP CODE (unchanged) ===
 ...
+
 
 
 # === TOGGLE SIDEBAR BUTTON: Fixed for visibility when sidebar is closed ===
