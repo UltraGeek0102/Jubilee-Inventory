@@ -66,7 +66,6 @@ def get_drive_service():
     return build("drive", "v3", credentials=creds)
 
 
-
 # === MOBILE RESPONSIVE STYLING ===
 st.markdown("""
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -84,12 +83,6 @@ st.markdown("""
             .scroll-table-wrapper {
                 max-height: 300px;
             }
-            .sidebar-toggle-button {
-                top: 10px !important;
-                left: 10px !important;
-                font-size: 14px;
-                padding: 6px 10px;
-            }
             .element-container:has(.stButton) {
                 width: 100% !important;
             }
@@ -103,18 +96,14 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# === Fix image size for mobile preview ===
-def make_clickable(url):
-    return f'<img src="{url}" style="width:100%; max-width:100px; height:auto;">' if url else ""
-
-# === DYNAMIC SIDEBAR CONFIG (Updated for Streamlit >=1.31) ===
+# === DYNAMIC SIDEBAR CONFIG ===
 query_params = st.query_params
 sidebar_state = query_params.get("sidebar", "collapsed")
 
 st.set_page_config(
     page_title="Jubilee Inventory",
     page_icon="logo.png",
-    layout="centered",  # or "wide" if preferred
+    layout="centered",
     initial_sidebar_state=sidebar_state
 )
 
@@ -145,6 +134,9 @@ st.markdown("""
     }
     </style>
 """, unsafe_allow_html=True)
+
+# === CONTINUE WITH APP CODE (unchanged) ===
+...
 
 
 # === TOGGLE SIDEBAR BUTTON: Fixed for visibility when sidebar is closed ===
