@@ -175,6 +175,16 @@ with st.sidebar:
         save_data(df)
         st.success(f"Deleted {del_dno}")
 
+# --- MAIN PAGE LOGO ---
+if LOGO_PATH.exists():
+    logo_base64 = base64.b64encode(open(str(LOGO_PATH), "rb").read()).decode()
+    st.markdown(f"""
+    <div style='text-align:center; margin-top: -20px; margin-bottom: 20px;'>
+        <img src='data:image/png;base64,{logo_base64}' width='120'>
+    </div>
+    """, unsafe_allow_html=True)
+
+
 # --- FILTER + EXPORT ---
 df = load_data()
 st.subheader("🔍 Filter/Search")
