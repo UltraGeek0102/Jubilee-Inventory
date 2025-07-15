@@ -1,4 +1,4 @@
-# jubilee_inventory_app.py (Polished Full Version with Matching Table and Delivery Tracking + Edit/Delete)
+# jubilee_inventory_app.py (Polished Full Version with Matching Table and Delivery Tracking + Edit/Delete + Filters/Export/Table)
 
 # --- IMPORTS ---
 import streamlit as st
@@ -78,6 +78,18 @@ st.markdown("""
             h1 { font-size: 1.5rem !important; }
         }
         footer { visibility: hidden; }
+        .scroll-table-wrapper {
+            max-height: 600px;
+            overflow-y: auto;
+            border: 1px solid #555;
+            border-radius: 6px;
+            padding: 10px;
+        }
+        .scroll-table-wrapper table {
+            width: 100%;
+            font-size: 15px;
+            color: white;
+        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -117,27 +129,6 @@ def calculate_status(pcs):
     else:
         return "IN STOCK"
 
-def upload_image(image_file):
-    if image_file is None:
-        return ""
-
-    drive_service = get_drive_service()
-    image_file.seek(0)
-    file_bytes = image_file.read()
-    image_file.seek(0)
-
-    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-    filename = f"{Path(image_file.name).stem}_{timestamp}.png"
-    file_metadata = {
-        "name": filename,
-        "parents": [st.secrets["drive"].get("folder_id", "")]
-    }
-
-    media = MediaIoBaseUpload(io.BytesIO(file_bytes), mimetype=image_file.type, resumable=True)
-    uploaded = drive_service.files().create(body=file_metadata, media_body=media, fields="id").execute()
-    file_id = uploaded.get("id")
-    return f"https://drive.google.com/uc?id={file_id}"
-
 def make_clickable(url):
     if not url:
         return ""
@@ -160,29 +151,42 @@ def generate_html_report(data):
 def get_default(selected_data, key, default):
     return selected_data.get(key, default) if isinstance(selected_data, pd.Series) else default
 
-# --- SIDEBAR ---
+# --- FILTER + EXPORT ---
 df = load_data()
-with st.sidebar:
-    if LOGO_PATH.exists():
-        logo_base64 = base64.b64encode(open(str(LOGO_PATH), "rb").read()).decode()
-        st.markdown(f"""
-        <div style='text-align:center;'>
-            <img src='data:image/png;base64,{logo_base64}' width='150'><br>
-            <h3 style='color:white;'>JUBILEE TEXTILE PROCESSORS</h3>
-        </div>
-        """, unsafe_allow_html=True)
-    else:
-        st.warning("[Logo not found]")
+st.subheader("🔍 Filter/Search")
+search_term = st.text_input("Search by D.NO. or Company")
+type_filter = st.selectbox("Filter by Type", ["All"] + sorted(df["Type"].dropna().unique()))
 
-    st.metric("Total PCS", int(df["PCS"].fillna(0).sum()))
-    st.metric("Total Value", f"₹{df['Total'].fillna(0).sum():,.2f}")
+filtered_df = df.copy()
+if search_term:
+    search_results = process.extract(search_term, df["D.NO."].astype(str).tolist() + df["Company"].astype(str).tolist(), limit=25)
+    matched = set([r[0] for r in search_results if r[1] > 60])
+    filtered_df = df[df["D.NO."].isin(matched) | df["Company"].isin(matched)]
 
-    st.subheader("🗑️ Delete Product")
-    del_dno = st.selectbox("Select D.NO. to Delete", df["D.NO."].unique())
-    if st.button("Delete Selected Product"):
-        df = df[df["D.NO."] != del_dno]
-        save_data(df)
-        st.success(f"Deleted {del_dno}")
+if type_filter != "All":
+    filtered_df = filtered_df[filtered_df["Type"] == type_filter]
+
+# --- EXPORT ---
+st.subheader("⬇️ Export")
+export_format = st.radio("Choose format", ["Excel", "Printable HTML"])
+if export_format == "Excel":
+    from io import BytesIO
+    excel_io = BytesIO()
+    with pd.ExcelWriter(excel_io, engine="xlsxwriter") as writer:
+        filtered_df.to_excel(writer, index=False, sheet_name="Inventory")
+    st.download_button("Download Excel", excel_io.getvalue(), "jubilee_inventory.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+elif export_format == "Printable HTML":
+    html_report = generate_html_report(filtered_df)
+    st.download_button("Download HTML Report", html_report.encode(), "jubilee_inventory.html", mime="text/html")
+
+# --- DISPLAY SORTABLE TABLE ---
+st.subheader("📋 Inventory Table")
+st.markdown("<div class='scroll-table-wrapper'>", unsafe_allow_html=True)
+st.dataframe(filtered_df, use_container_width=True)
+st.markdown("</div>", unsafe_allow_html=True)
+
+# --- CONTINUE WITH Add/Edit form and delete section here ---
+
 
 # --- FORM ---
 form_mode = st.radio("Mode", ["Add New", "Edit Existing"], horizontal=True)
