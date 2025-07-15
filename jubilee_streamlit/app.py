@@ -69,6 +69,18 @@ st.set_page_config(
     layout="centered"
 )
 
+# --- CUSTOM FAVICON ---
+FAVICON_PATH = Path(__file__).parent / "favicon.ico"
+
+if FAVICON_PATH.exists():
+    favicon_base64 = base64.b64encode(open(FAVICON_PATH, "rb").read()).decode()
+    st.markdown(f"""
+        <link rel="shortcut icon" href="data:image/x-icon;base64,{favicon_base64}">
+    """, unsafe_allow_html=True)
+else:
+    st.warning("⚠️ Favicon file not found.")
+
+
 # --- STYLE ---
 st.markdown("""
     <meta name='viewport' content='width=device-width, initial-scale=1.0'>
