@@ -1,4 +1,4 @@
-# jubilee_inventory_app.py (Polished Full Version)
+# jubilee_inventory_app.py (Polished Full Version with Matching Table and Delivery Tracking)
 
 # --- IMPORTS ---
 import streamlit as st
@@ -78,13 +78,40 @@ st.markdown("""
             h1 { font-size: 1.5rem !important; }
         }
         footer { visibility: hidden; }
+        .fixed-table-wrapper {
+            max-height: 500px;
+            overflow-y: scroll;
+            overflow-x: auto;
+            border: 1px solid #555;
+            padding: 10px;
+            border-radius: 8px;
+            background: #111;
+        }
+        .fixed-table-wrapper table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+            color: #fff;
+        }
+        .fixed-table-wrapper th,
+        .fixed-table-wrapper td {
+            padding: 8px;
+            border: 1px solid #333;
+        }
+        .fixed-table-wrapper thead {
+            background-color: #222;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
     </style>
 """, unsafe_allow_html=True)
 
 # --- GLOBAL VARS ---
 REQUIRED_COLUMNS = [
     "D.NO.", "Company", "Type", "PCS", "Rate", "Total",
-    "Matching", "Image", "Created", "Updated", "Status"
+    "Matching", "Image", "Created", "Updated", "Status",
+    "Delivery PCS", "Difference in PCS"
 ]
 LOGO_PATH = Path(__file__).parent / "logo.png"
 
@@ -159,120 +186,60 @@ def generate_html_report(data):
 def get_default(selected_data, key, default):
     return selected_data.get(key, default) if isinstance(selected_data, pd.Series) else default
 
-# --- SESSION INIT ---
-if "force_reload" not in st.session_state:
-    st.session_state.force_reload = False
-if "highlight_dno" not in st.session_state:
-    st.session_state.highlight_dno = None
-
-# --- LOAD DATA ---
-df = load_data()
-
-# --- FILTERING ---
-type_filter = st.selectbox("Filter by Type", ["All"] + sorted(df["Type"].dropna().unique()))
-search_query = st.text_input("Search by D.NO. or Company")
-
-filtered_df = df.copy()
-if type_filter != "All":
-    filtered_df = filtered_df[filtered_df["Type"] == type_filter]
-if search_query:
-    matches = process.extract(search_query, df["D.NO."].astype(str).tolist() + df["Company"].astype(str).tolist(), limit=20)
-    hits = {m[0] for m in matches if m[1] > 60}
-    filtered_df = df[df["D.NO."].astype(str).isin(hits) | df["Company"].astype(str).isin(hits)]
-
-# --- SIDEBAR ---
-with st.sidebar:
-    if LOGO_PATH.exists():
-        logo_base64 = base64.b64encode(open(str(LOGO_PATH), "rb").read()).decode()
-        st.markdown(f"""
-            <div style='text-align:center;'>
-                <img src='data:image/png;base64,{logo_base64}' width='150'>
-            </div>
-        """, unsafe_allow_html=True)
-    st.header("📊 Inventory Summary")
-    st.metric("Total PCS", int(df["PCS"].fillna(0).sum()))
-    st.metric("Total Value", f"₹{df['Total'].fillna(0).sum():,.2f}")
-
-    with st.expander("⬇️ Export Options"):
-        export_format = st.radio("Format", ["CSV", "Excel"], horizontal=True)
-        export_df = filtered_df[REQUIRED_COLUMNS]
-        if export_format == "CSV":
-            csv_data = export_df.to_csv(index=False).encode("utf-8")
-            st.download_button("Download CSV", csv_data, "jubilee_inventory.csv", "text/csv")
-        else:
-            buffer = io.BytesIO()
-            with pd.ExcelWriter(buffer, engine="xlsxwriter") as writer:
-                export_df.to_excel(writer, index=False, sheet_name="Inventory")
-            st.download_button("Download Excel", buffer.getvalue(), "jubilee_inventory.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
-    with st.expander("🧾 Printable Report"):
-        html_report = generate_html_report(export_df)
-        st.download_button("Download HTML Report", html_report.encode(), "inventory_report.html", "text/html")
-
-# --- TABLE ---
-st.markdown("### 📋 Inventory Table")
-filtered_df["Image"] = filtered_df["Image"].apply(make_clickable)
-st.markdown("""<div style='overflow-x:auto;'>""" +
-            filtered_df[REQUIRED_COLUMNS].to_html(escape=False, index=False) +
-            "</div>", unsafe_allow_html=True)
-
-# --- FORM: ADD / EDIT PRODUCT ---
-st.markdown("---")
-st.subheader("➕ Add / Edit Product")
-form_mode = st.radio("Mode", ["Add New", "Edit Existing"], horizontal=True)
-selected_dno = st.selectbox("Select D.NO.", sorted(df["D.NO."].dropna().unique())) if form_mode == "Edit Existing" else ""
-selected_row = df[df["D.NO."] == selected_dno].iloc[0] if form_mode == "Edit Existing" and selected_dno else {}
-
+# --- FORM EXAMPLE ---
 with st.form("product_form"):
     col1, col2 = st.columns(2)
     with col1:
-        company = st.text_input("Company", value=get_default(selected_row, "Company", ""))
-        dno = st.text_input("D.NO.", value=get_default(selected_row, "D.NO.", ""))
-        rate = st.number_input("Rate", value=float(get_default(selected_row, "Rate", 0)), min_value=0.0)
-        pcs = st.number_input("PCS", value=int(float(get_default(selected_row, "PCS", 0))), min_value=0)
+        company = st.text_input("Company")
+        dno = st.text_input("D.NO.")
+        rate = st.number_input("Rate", min_value=0.0, value=0.0)
     with col2:
-        type_ = st.selectbox("Type", ["WITH LACE", "WITHOUT LACE"], index=0 if get_default(selected_row, "Type", "") == "WITH LACE" else 1)
-        matching = st.text_area("Matching (Color:PCS, comma-separated)", value=get_default(selected_row, "Matching", ""))
+        type_ = st.selectbox("Type", ["WITH LACE", "WITHOUT LACE"])
         image_file = st.file_uploader("Upload Image", type=["jpg", "jpeg", "png"])
-        if image_file:
-            st.image(image_file, caption="Preview", use_container_width=True)
-        elif selected_row.get("Image"):
-            st.image(selected_row.get("Image"), caption="Current Image", use_container_width=True)
 
-    if st.form_submit_button("Save Product"):
+    matching_table = st.data_editor(
+        [{"Color": "", "PCS": 0}],
+        num_rows="dynamic",
+        key="match_editor",
+        column_config={"PCS": st.column_config.NumberColumn("PCS", min_value=0)}
+    )
+
+    # Calculate total PCS from matching table
+    total_pcs = sum(int(float(row.get("PCS", 0))) for row in matching_table if row.get("Color"))
+    st.markdown(f"**Total PCS:** {total_pcs}")
+
+    delivery_pcs = st.number_input("Delivery PCS", min_value=0, value=0)
+    difference_pcs = total_pcs - delivery_pcs
+    st.markdown(f"**Difference in PCS:** {difference_pcs}")
+
+    submitted = st.form_submit_button("Save Product")
+    if submitted:
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        matching_clean = ", ".join([m.strip() for m in matching.split(",") if ":" in m])
-        total_pcs = sum([int(m.split(":")[1]) for m in matching_clean.split(",") if ":" in m])
-        image_url = upload_image(image_file) if image_file else selected_row.get("Image", "")
+        image_url = upload_image(image_file) if image_file else ""
 
-        df = df[df["D.NO."] != dno]
+        matching_str = ", ".join([
+            f"{row['Color']}:{int(float(row['PCS']))}"
+            for row in matching_table if row.get("Color")
+        ])
+
         new_row = {
             "D.NO.": dno.strip().upper(),
             "Company": company.strip().upper(),
             "Type": type_,
             "PCS": total_pcs,
             "Rate": rate,
-            "Total": total_pcs * rate,
-            "Matching": matching_clean,
+            "Total": rate * total_pcs,
+            "Matching": matching_str,
             "Image": image_url,
-            "Created": get_default(selected_row, "Created", now),
+            "Created": now,
             "Updated": now,
-            "Status": calculate_status(total_pcs)
+            "Status": calculate_status(total_pcs),
+            "Delivery PCS": delivery_pcs,
+            "Difference in PCS": difference_pcs
         }
+
+        df = load_data()
+        df = df[df["D.NO."] != dno.strip().upper()]
         df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
         save_data(df)
-        st.success("✅ Product saved.")
-        st.session_state.force_reload = True
-        st.rerun()
-
-# --- DELETE ---
-st.markdown("---")
-st.subheader("🗑️ Delete Product")
-if not df.empty:
-    del_dno = st.selectbox("Select D.NO. to Delete", df["D.NO."].unique())
-    if st.button("Confirm Delete"):
-        df = df[df["D.NO."] != del_dno]
-        save_data(df)
-        st.success(f"Deleted {del_dno}")
-        st.session_state.force_reload = True
-        st.rerun()
+        st.success("✅ Product saved successfully")
