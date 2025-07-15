@@ -129,6 +129,17 @@ def generate_html_report(data):
     {data.to_html(index=False)}
     </body></html>
     """
+# --- MAIN PAGE LOGO ---
+if LOGO_PATH.exists():
+    logo_base64 = base64.b64encode(open(str(LOGO_PATH), "rb").read()).decode()
+    st.markdown(f"""
+    <div style="display: flex; justify-content: center; margin-bottom: 20px;">
+        <img src="data:image/png;base64,{logo_base64}" width="180" />
+    </div>
+    """, unsafe_allow_html=True)
+else:
+    st.warning("Main page logo not found.")
+
 
 # --- SESSION STATE DATAFRAME INIT ---
 if "df" not in st.session_state:
@@ -241,16 +252,6 @@ with st.sidebar:
         st.session_state.df = df
         st.success(f"Deleted {del_dno}")
         
-# --- MAIN PAGE LOGO ---
-if LOGO_PATH.exists():
-    logo_base64 = base64.b64encode(open(str(LOGO_PATH), "rb").read()).decode()
-    st.markdown(f"""
-    <div style="display: flex; justify-content: center; margin-bottom: 20px;">
-        <img src="data:image/png;base64,{logo_base64}" width="180" />
-    </div>
-    """, unsafe_allow_html=True)
-else:
-    st.warning("Main page logo not found.")
 
 
 # --- FILTER + EXPORT ---
