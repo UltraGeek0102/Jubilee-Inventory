@@ -129,6 +129,40 @@ def generate_html_report(data):
     {data.to_html(index=False)}
     </body></html>
     """
+
+def upload_image_to_drive(image_file):
+    if image_file is None:
+        return ""
+
+    creds = sheet_creds
+    drive_service = build("drive", "v3", credentials=creds)
+
+    # Create a filename with timestamp
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    filename = f"Jubilee_{timestamp}_{image_file.name}"
+
+    # Upload file as media
+    media = MediaIoBaseUpload(image_file, mimetype=image_file.type)
+    file_metadata = {
+        "name": filename,
+        "parents": [st.secrets["1HLGXKRWbY3B9jFVa44tVhf2PEFwF-Ota"]]  # Your shared folder ID
+    }
+
+    uploaded_file = drive_service.files().create(
+        body=file_metadata,
+        media_body=media,
+        fields="id"
+    ).execute()
+
+    # Make it publicly viewable
+    drive_service.permissions().create(
+        fileId=uploaded_file["id"],
+        body={"role": "reader", "type": "anyone"},
+    ).execute()
+
+    file_id = uploaded_file["id"]
+    return f"https://drive.google.com/uc?id={file_id}"
+
 # --- MAIN PAGE LOGO ---
 if LOGO_PATH.exists():
     logo_base64 = base64.b64encode(open(str(LOGO_PATH), "rb").read()).decode()
@@ -200,7 +234,8 @@ with st.form("product_form"):
     submitted = st.form_submit_button("💾 Save Product")
     if submitted:
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        image_url = get_default(selected_data, "Image", "")
+        image_url = upload_image_to_drive(image_file) if image_file else get_default(selected_data, "Image", "")
+
 
         matching_str = ", ".join([
             f"{row['Color']}:{int(float(row['PCS']))}"
@@ -282,10 +317,14 @@ elif export_format == "Printable HTML":
     html_report = generate_html_report(filtered_df)
     st.download_button("Download HTML Report", html_report.encode(), "jubilee_inventory.html", mime="text/html")
 
-# --- DISPLAY SORTABLE TABLE ---
-st.subheader("📋 Inventory Table")
-st.markdown("<div class='scroll-table-wrapper'>", unsafe_allow_html=True)
-st.dataframe(filtered_df, use_container_width=True)
-st.markdown("</div>", unsafe_allow_html=True)
+# --- DISPLAY SORTABLE TABLE WITH IMAGES ---
+def render_image_thumbnails(df):
+    df = df.copy()
+    df["Image"] = df["Image"].apply(lambda url: f'<img src="{url}" width="60">' if url else "")
+    return df
 
-# --- CONTINUE WITH Add/Edit form and delete section here ---
+html_table = render_image_thumbnails(filtered_df).to_html(escape=False, index=False)
+st.subheader("📋 Inventory Table with Images")
+st.markdown("<div class='scroll-table-wrapper'>", unsafe_allow_html=True)
+st.markdown(html_table, unsafe_allow_html=True)
+st.markdown("</div>", unsafe_allow_html=True)
