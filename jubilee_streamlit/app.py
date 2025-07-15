@@ -151,6 +151,30 @@ def generate_html_report(data):
 def get_default(selected_data, key, default):
     return selected_data.get(key, default) if isinstance(selected_data, pd.Series) else default
 
+# --- SIDEBAR ---
+df = load_data()
+with st.sidebar:
+    if LOGO_PATH.exists():
+        logo_base64 = base64.b64encode(open(str(LOGO_PATH), "rb").read()).decode()
+        st.markdown(f"""
+        <div style='text-align:center;'>
+            <img src='data:image/png;base64,{logo_base64}' width='150'><br>
+            <h3 style='color:white;'>JUBILEE TEXTILE PROCESSORS</h3>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.warning("[Logo not found]")
+
+    st.metric("Total PCS", int(df["PCS"].fillna(0).sum()))
+    st.metric("Total Value", f"₹{df['Total'].fillna(0).sum():,.2f}")
+
+    st.subheader("🗑️ Delete Product")
+    del_dno = st.selectbox("Select D.NO. to Delete", df["D.NO."].unique())
+    if st.button("Delete Selected Product"):
+        df = df[df["D.NO."] != del_dno]
+        save_data(df)
+        st.success(f"Deleted {del_dno}")
+
 # --- FILTER + EXPORT ---
 df = load_data()
 st.subheader("🔍 Filter/Search")
