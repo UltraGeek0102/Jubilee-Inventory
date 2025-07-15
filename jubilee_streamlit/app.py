@@ -266,8 +266,12 @@ with st.form("product_form"):
 
     matching_table = st.data_editor(
         [{"Color": "", "PCS": 0}] if not get_default(selected_data, "Matching", "") else
-        [{"Color": color.strip(), "PCS": int(float(pcs.strip()))} for item in get_default(selected_data, "Matching", "").split(",") if ":" in item for color, pcs in [item.split(":")]]
-
+        [
+            {"Color": parts[0].strip(), "PCS": int(float(parts[1].strip()))}
+            for item in get_default(selected_data, "Matching", "").split(",")
+            if ":" in item and len((parts := item.split(":", 1))) == 2
+        ],
+        
         num_rows="dynamic",
         key="match_editor",
         column_config={"PCS": st.column_config.NumberColumn("PCS", min_value=0)}
