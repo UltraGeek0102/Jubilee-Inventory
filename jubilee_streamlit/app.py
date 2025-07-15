@@ -140,19 +140,16 @@ def load_data():
 def save_data(df):
     df_to_save = df.copy()
 
-    # Convert datetime columns to string safely
+    # Format datetime columns as strings
     for col in ["Created", "Updated"]:
         if col in df_to_save.columns:
             df_to_save[col] = df_to_save[col].apply(
-                lambda x: x.strftime("%Y-%m-%d %H:%M:%S") if not pd.isnull(x) and not isinstance(x, str) else x
+                lambda x: x.strftime("%Y-%m-%d %H:%M:%S") if isinstance(x, datetime) else x
             )
 
-    # Reorder columns just in case
     df_to_save = df_to_save[[col for col in REQUIRED_COLUMNS if col in df_to_save.columns]]
-
-    # Clear and update
     sheet.clear()
-    sheet.update([df_to_save.columns.tolist()] + df_to_save.values.tolist())
+    sheet.update([df_to_save.columns.tolist()] + df_to_save.astype(str).values.tolist())
 
 
 def calculate_status(pcs):
@@ -335,6 +332,6 @@ with st.form("product_form"):
         df = df[df["D.NO."] != dno.strip().upper()]
         df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
         save_data(df)
-        st.success("✅ Product saved successfully!")
-
+        st.success("✅ Product saved successfully!", icon="💾")
+        time.sleep(1)  # Optional slight pause for effect
         st.experimental_rerun()
