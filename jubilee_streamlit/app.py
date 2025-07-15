@@ -264,18 +264,29 @@ with st.form("product_form"):
         type_ = st.selectbox("Type", type_options, index=type_index)
         image_file = st.file_uploader("Upload Image", type=["jpg", "jpeg", "png"])
 
+    # --- MATCHING TABLE ---
+    matching_raw = get_default(selected_data, "Matching", "")
+    if matching_raw:
+        matching_table_data = []
+        for item in matching_raw.split(","):
+            if ":" in item:
+                parts = item.strip().split(":", 1)
+                if len(parts) == 2:
+                    color, pcs = parts
+                    try:
+                        matching_table_data.append({"Color": color.strip(), "PCS": int(float(pcs.strip()))})
+                    except ValueError:
+                        continue
+    else:
+        matching_table_data = [{"Color": "", "PCS": 0}]
+
     matching_table = st.data_editor(
-        [{"Color": "", "PCS": 0}] if not get_default(selected_data, "Matching", "") else
-        [
-            {"Color": parts[0].strip(), "PCS": int(float(parts[1].strip()))}
-            for item in get_default(selected_data, "Matching", "").split(",")
-            if ":" in item and len((parts := item.split(":", 1))) == 2
-        ],
-        
+        matching_table_data,
         num_rows="dynamic",
         key="match_editor",
         column_config={"PCS": st.column_config.NumberColumn("PCS", min_value=0)}
     )
+
 
     total_pcs = sum(int(float(row.get("PCS", 0))) for row in matching_table if row.get("Color"))
     st.markdown(f"**Total PCS:** {total_pcs}")
