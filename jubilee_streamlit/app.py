@@ -1,4 +1,4 @@
-# jubilee_inventory_app.py (Polished Full Version with Matching Table and Delivery Tracking)
+# jubilee_inventory_app.py (Polished Full Version with Matching Table and Delivery Tracking + Edit/Delete)
 
 # --- IMPORTS ---
 import streamlit as st
@@ -78,32 +78,6 @@ st.markdown("""
             h1 { font-size: 1.5rem !important; }
         }
         footer { visibility: hidden; }
-        .fixed-table-wrapper {
-            max-height: 500px;
-            overflow-y: scroll;
-            overflow-x: auto;
-            border: 1px solid #555;
-            padding: 10px;
-            border-radius: 8px;
-            background: #111;
-        }
-        .fixed-table-wrapper table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 14px;
-            color: #fff;
-        }
-        .fixed-table-wrapper th,
-        .fixed-table-wrapper td {
-            padding: 8px;
-            border: 1px solid #333;
-        }
-        .fixed-table-wrapper thead {
-            background-color: #222;
-            position: sticky;
-            top: 0;
-            z-index: 1;
-        }
     </style>
 """, unsafe_allow_html=True)
 
@@ -186,36 +160,64 @@ def generate_html_report(data):
 def get_default(selected_data, key, default):
     return selected_data.get(key, default) if isinstance(selected_data, pd.Series) else default
 
-# --- FORM EXAMPLE ---
+# --- SIDEBAR ---
+df = load_data()
+with st.sidebar:
+    if LOGO_PATH.exists():
+        logo_base64 = base64.b64encode(open(str(LOGO_PATH), "rb").read()).decode()
+        st.markdown(f"""
+        <div style='text-align:center;'>
+            <img src='data:image/png;base64,{logo_base64}' width='150'><br>
+            <h3 style='color:white;'>JUBILEE TEXTILE PROCESSORS</h3>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.warning("[Logo not found]")
+
+    st.metric("Total PCS", int(df["PCS"].fillna(0).sum()))
+    st.metric("Total Value", f"₹{df['Total'].fillna(0).sum():,.2f}")
+
+    st.subheader("🗑️ Delete Product")
+    del_dno = st.selectbox("Select D.NO. to Delete", df["D.NO."].unique())
+    if st.button("Delete Selected Product"):
+        df = df[df["D.NO."] != del_dno]
+        save_data(df)
+        st.success(f"Deleted {del_dno}")
+
+# --- FORM ---
+form_mode = st.radio("Mode", ["Add New", "Edit Existing"], horizontal=True)
+selected_dno = st.selectbox("Select D.NO.", [""] + sorted(df["D.NO."].unique())) if form_mode == "Edit Existing" else ""
+selected_data = df[df["D.NO."] == selected_dno].iloc[0] if selected_dno else {}
+
 with st.form("product_form"):
     col1, col2 = st.columns(2)
     with col1:
-        company = st.text_input("Company")
-        dno = st.text_input("D.NO.")
-        rate = st.number_input("Rate", min_value=0.0, value=0.0)
+        company = st.text_input("Company", value=get_default(selected_data, "Company", ""))
+        dno = st.text_input("D.NO.", value=get_default(selected_data, "D.NO.", ""))
+        rate = st.number_input("Rate", min_value=0.0, value=float(get_default(selected_data, "Rate", 0)))
     with col2:
-        type_ = st.selectbox("Type", ["WITH LACE", "WITHOUT LACE"])
+        type_ = st.selectbox("Type", ["WITH LACE", "WITHOUT LACE"], index=["WITH LACE", "WITHOUT LACE"].index(get_default(selected_data, "Type", "WITH LACE")))
         image_file = st.file_uploader("Upload Image", type=["jpg", "jpeg", "png"])
 
     matching_table = st.data_editor(
-        [{"Color": "", "PCS": 0}],
+        [{"Color": "", "PCS": 0}] if not get_default(selected_data, "Matching", "") else
+        [{"Color": item.split(":"[0]), "PCS": int(item.split(":")[1])} for item in get_default(selected_data, "Matching", "").split(",") if ":" in item],
         num_rows="dynamic",
         key="match_editor",
         column_config={"PCS": st.column_config.NumberColumn("PCS", min_value=0)}
     )
 
-    # Calculate total PCS from matching table
     total_pcs = sum(int(float(row.get("PCS", 0))) for row in matching_table if row.get("Color"))
     st.markdown(f"**Total PCS:** {total_pcs}")
 
-    delivery_pcs = st.number_input("Delivery PCS", min_value=0, value=0)
+    delivery_pcs = st.number_input("Delivery PCS", min_value=0, value=int(float(get_default(selected_data, "Delivery PCS", 0))))
     difference_pcs = total_pcs - delivery_pcs
     st.markdown(f"**Difference in PCS:** {difference_pcs}")
 
     submitted = st.form_submit_button("Save Product")
     if submitted:
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        image_url = upload_image(image_file) if image_file else ""
+        image_url = upload_image(image_file) if image_file else get_default(selected_data, "Image", "")
 
         matching_str = ", ".join([
             f"{row['Color']}:{int(float(row['PCS']))}"
@@ -231,14 +233,13 @@ with st.form("product_form"):
             "Total": rate * total_pcs,
             "Matching": matching_str,
             "Image": image_url,
-            "Created": now,
+            "Created": get_default(selected_data, "Created", now),
             "Updated": now,
             "Status": calculate_status(total_pcs),
             "Delivery PCS": delivery_pcs,
             "Difference in PCS": difference_pcs
         }
 
-        df = load_data()
         df = df[df["D.NO."] != dno.strip().upper()]
         df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
         save_data(df)
