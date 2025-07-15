@@ -69,16 +69,26 @@ st.set_page_config(
     layout="centered"
 )
 
-# --- CUSTOM FAVICON ---
+
+# --- EMBED FAVICON ---
+from pathlib import Path
+import base64
+
 FAVICON_PATH = Path(__file__).parent / "favicon.ico"
 
 if FAVICON_PATH.exists():
-    favicon_base64 = base64.b64encode(open(FAVICON_PATH, "rb").read()).decode()
-    st.markdown(f"""
+    favicon_bytes = FAVICON_PATH.read_bytes()
+    favicon_base64 = base64.b64encode(favicon_bytes).decode()
+    st.markdown(
+        f"""
+        <head>
         <link rel="shortcut icon" href="data:image/x-icon;base64,{favicon_base64}">
-    """, unsafe_allow_html=True)
+        </head>
+        """,
+        unsafe_allow_html=True
+    )
 else:
-    st.warning("⚠️ Favicon file not found.")
+    st.warning("⚠️ favicon.ico not found in the app directory.")
 
 
 # --- STYLE ---
