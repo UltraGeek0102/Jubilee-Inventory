@@ -178,7 +178,7 @@ with st.sidebar:
 # --- MAIN PAGE LOGO ---
 if LOGO_PATH.exists():
     st.markdown("<div style='text-align:center;'>", unsafe_allow_html=True)
-    st.image(str(LOGO_PATH), width=120)
+    st.image(str(LOGO_PATH), width=180)
     st.markdown("</div>", unsafe_allow_html=True)
 else:
     st.warning("Main page logo not found.")
