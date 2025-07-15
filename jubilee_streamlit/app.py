@@ -144,12 +144,18 @@ def save_data(df):
     for col in ["Created", "Updated"]:
         if col in df_to_save.columns:
             df_to_save[col] = df_to_save[col].apply(
-                lambda x: x.strftime("%Y-%m-%d %H:%M:%S") if isinstance(x, datetime) else x
+                lambda x: x.strftime("%Y-%m-%d %H:%M:%S")
+                if isinstance(x, datetime) and not pd.isna(x)
+                else ""
             )
 
+    # Keep only the required columns
     df_to_save = df_to_save[[col for col in REQUIRED_COLUMNS if col in df_to_save.columns]]
+
+    # Save to Google Sheets
     sheet.clear()
     sheet.update([df_to_save.columns.tolist()] + df_to_save.astype(str).values.tolist())
+
 
 
 def calculate_status(pcs):
