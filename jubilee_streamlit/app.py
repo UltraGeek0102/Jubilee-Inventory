@@ -275,7 +275,14 @@ with st.form("product_form"):
     total_pcs = sum(int(float(row.get("PCS", 0))) for row in matching_table if row.get("Color"))
     st.markdown(f"**Total PCS:** {total_pcs}")
 
-    delivery_pcs = st.number_input("Delivery PCS", min_value=0, value=int(float(get_default(selected_data, "Delivery PCS", 0))))
+    raw_delivery = get_default(selected_data, "Delivery PCS", 0)
+    try:
+        delivery_val = int(float(raw_delivery)) if raw_delivery not in ["", None] else 0
+    except:
+        delivery_val = 0
+
+    delivery_pcs = st.number_input("Delivery PCS", min_value=0, value=delivery_val)
+
     difference_pcs = total_pcs - delivery_pcs
     st.markdown(f"**Difference in PCS:** {difference_pcs}")
 
