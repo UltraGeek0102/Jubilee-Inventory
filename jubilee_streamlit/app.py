@@ -258,7 +258,10 @@ with st.form("product_form"):
         dno = st.text_input("D.NO.", value=get_default(selected_data, "D.NO.", ""))
         rate = st.number_input("Rate", min_value=0.0, value=float(get_default(selected_data, "Rate", 0)))
     with col2:
-        type_ = st.selectbox("Type", ["WITH LACE", "WITHOUT LACE"], index=["WITH LACE", "WITHOUT LACE"].index(get_default(selected_data, "Type", "WITH LACE")))
+        type_options = ["WITH LACE", "WITHOUT LACE"]
+        selected_type = get_default(selected_data, "Type", "WITH LACE")
+        type_index = type_options.index(selected_type) if selected_type in type_options else 0
+        type_ = st.selectbox("Type", type_options, index=type_index)
         image_file = st.file_uploader("Upload Image", type=["jpg", "jpeg", "png"])
 
     matching_table = st.data_editor(
