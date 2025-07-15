@@ -346,4 +346,4 @@ with st.form("product_form"):
         df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
         save_data(df)
         st.success("✅ Product saved successfully!", icon="💾")
-        st.experimental_rerun()
+        
