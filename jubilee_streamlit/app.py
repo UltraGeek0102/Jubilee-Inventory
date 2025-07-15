@@ -309,23 +309,32 @@ with st.form("product_form"):
             for row in matching_table if row.get("Color")
         ])
 
+        dno_clean = dno.strip().upper()
+
         new_row = {
-            "D.NO.": dno.strip().upper(),
+            "D.NO.": dno_clean,
             "Company": company.strip().upper(),
             "Type": type_,
-            "PCS": pcs,
+            "PCS": total_pcs,
             "Rate": rate,
-            "Total": rate * pcs,
+            "Total": rate * total_pcs,
             "Matching": matching_str,
             "Image": image_url,
             "Created": get_default(selected_data, "Created", now),
             "Updated": now,
-            "Status": calculate_status(pcs),
+            "Status": calculate_status(total_pcs),
             "Delivery PCS": delivery_pcs,
             "Difference in PCS": difference_pcs
         }
 
-        df = df[df["D.NO."] != dno.strip().upper()]
+        # ✅ Ensure old entry is removed correctly (case-insensitive)
+        df["D.NO."] = df["D.NO."].astype(str).str.strip().str.upper()
+        df = df[df["D.NO."] != dno_clean]
+
+        # ✅ Add updated row
         df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+
+        # ✅ Save and refresh
         save_data(df)
         st.success("✅ Product saved successfully")
+        st.experimental_rerun()  # 🔁 Optional: refresh to reflect changes immediately
