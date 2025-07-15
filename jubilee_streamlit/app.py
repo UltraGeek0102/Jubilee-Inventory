@@ -138,9 +138,22 @@ def load_data():
     return df.sort_values("Created", ascending=False)
 
 def save_data(df):
-    df = df[REQUIRED_COLUMNS]
+    df_to_save = df.copy()
+
+    # Convert datetime columns to string safely
+    for col in ["Created", "Updated"]:
+        if col in df_to_save.columns:
+            df_to_save[col] = df_to_save[col].apply(
+                lambda x: x.strftime("%Y-%m-%d %H:%M:%S") if not pd.isnull(x) and not isinstance(x, str) else x
+            )
+
+    # Reorder columns just in case
+    df_to_save = df_to_save[[col for col in REQUIRED_COLUMNS if col in df_to_save.columns]]
+
+    # Clear and update
     sheet.clear()
-    sheet.update([df.columns.tolist()] + df.astype(str).values.tolist())
+    sheet.update([df_to_save.columns.tolist()] + df_to_save.values.tolist())
+
 
 def calculate_status(pcs):
     pcs = int(float(pcs or 0))
@@ -247,6 +260,8 @@ st.markdown("</div>", unsafe_allow_html=True)
 
 # --- FORM ---
 form_mode = st.radio("Mode", ["Add New", "Edit Existing"], horizontal=True)
+df = load_data()  # Reload after deletion or edits
+
 selected_dno = st.selectbox("Select D.NO.", [""] + sorted(df["D.NO."].unique())) if form_mode == "Edit Existing" else ""
 selected_data = df[df["D.NO."] == selected_dno].iloc[0] if selected_dno else {}
 
@@ -256,7 +271,6 @@ with st.form("product_form"):
         company = st.text_input("Company", value=get_default(selected_data, "Company", ""))
         dno = st.text_input("D.NO.", value=get_default(selected_data, "D.NO.", ""))
         rate = st.number_input("Rate", min_value=0.0, value=float(get_default(selected_data, "Rate", 0)))
-        pcs = st.number_input("PCS (Total)", min_value=0, value=int(float(get_default(selected_data, "PCS", 0))))
     with col2:
         type_options = ["WITH LACE", "WITHOUT LACE"]
         selected_type = get_default(selected_data, "Type", "WITH LACE")
@@ -272,9 +286,9 @@ with st.form("product_form"):
             if ":" in item:
                 parts = item.strip().split(":", 1)
                 if len(parts) == 2:
-                    color, pcs_val = parts
+                    color, pcs = parts
                     try:
-                        matching_table_data.append({"Color": color.strip(), "PCS": int(float(pcs_val.strip()))})
+                        matching_table_data.append({"Color": color.strip(), "PCS": int(float(pcs.strip()))})
                     except ValueError:
                         continue
     else:
@@ -287,8 +301,10 @@ with st.form("product_form"):
         column_config={"PCS": st.column_config.NumberColumn("PCS", min_value=0)}
     )
 
-    st.markdown("**Matching Table is optional**")
+    total_pcs = sum(int(float(row.get("PCS", 0))) for row in matching_table if row.get("Color"))
+    st.markdown(f"**Total PCS:** {total_pcs}")
 
+    # DELIVERY PCS
     raw_delivery = get_default(selected_data, "Delivery PCS", 0)
     try:
         delivery_val = int(float(raw_delivery)) if raw_delivery not in ["", None] else 0
@@ -296,10 +312,11 @@ with st.form("product_form"):
         delivery_val = 0
 
     delivery_pcs = st.number_input("Delivery PCS", min_value=0, value=delivery_val)
-    difference_pcs = pcs - delivery_pcs
+    difference_pcs = total_pcs - delivery_pcs
     st.markdown(f"**Difference in PCS:** {difference_pcs}")
 
     submitted = st.form_submit_button("Save Product")
+
     if submitted:
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         image_url = upload_image(image_file) if image_file else get_default(selected_data, "Image", "")
@@ -309,10 +326,8 @@ with st.form("product_form"):
             for row in matching_table if row.get("Color")
         ])
 
-        dno_clean = dno.strip().upper()
-
         new_row = {
-            "D.NO.": dno_clean,
+            "D.NO.": dno.strip().upper(),
             "Company": company.strip().upper(),
             "Type": type_,
             "PCS": total_pcs,
@@ -327,14 +342,10 @@ with st.form("product_form"):
             "Difference in PCS": difference_pcs
         }
 
-        # ✅ Ensure old entry is removed correctly (case-insensitive)
-        df["D.NO."] = df["D.NO."].astype(str).str.strip().str.upper()
-        df = df[df["D.NO."] != dno_clean]
-
-        # ✅ Add updated row
+        # Remove old entry if editing
+        df = df[df["D.NO."] != dno.strip().upper()]
         df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
 
-        # ✅ Save and refresh
         save_data(df)
         st.success("✅ Product saved successfully")
-        st.experimental_rerun()  # 🔁 Optional: refresh to reflect changes immediately
+        st.experimental_rerun()
