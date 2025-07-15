@@ -177,12 +177,14 @@ with st.sidebar:
 
 # --- MAIN PAGE LOGO ---
 if LOGO_PATH.exists():
-    st.markdown("<div style='text-align:center;'>", unsafe_allow_html=True)
-    st.image(str(LOGO_PATH), width=180)
-    st.markdown("</div>", unsafe_allow_html=True)
+    logo_base64 = base64.b64encode(open(str(LOGO_PATH), "rb").read()).decode()
+    st.markdown(f"""
+    <div style="display: flex; justify-content: center; margin-bottom: 20px;">
+        <img src="data:image/png;base64,{logo_base64}" width="180" />
+    </div>
+    """, unsafe_allow_html=True)
 else:
     st.warning("Main page logo not found.")
-
 
 
 # --- FILTER + EXPORT ---
