@@ -245,7 +245,6 @@ st.markdown("</div>", unsafe_allow_html=True)
 
 # --- CONTINUE WITH Add/Edit form and delete section here ---
 
-
 # --- FORM ---
 form_mode = st.radio("Mode", ["Add New", "Edit Existing"], horizontal=True)
 selected_dno = st.selectbox("Select D.NO.", [""] + sorted(df["D.NO."].unique())) if form_mode == "Edit Existing" else ""
@@ -257,6 +256,7 @@ with st.form("product_form"):
         company = st.text_input("Company", value=get_default(selected_data, "Company", ""))
         dno = st.text_input("D.NO.", value=get_default(selected_data, "D.NO.", ""))
         rate = st.number_input("Rate", min_value=0.0, value=float(get_default(selected_data, "Rate", 0)))
+        pcs = st.number_input("PCS (Total)", min_value=0, value=int(float(get_default(selected_data, "PCS", 0))))
     with col2:
         type_options = ["WITH LACE", "WITHOUT LACE"]
         selected_type = get_default(selected_data, "Type", "WITH LACE")
@@ -272,9 +272,9 @@ with st.form("product_form"):
             if ":" in item:
                 parts = item.strip().split(":", 1)
                 if len(parts) == 2:
-                    color, pcs = parts
+                    color, pcs_val = parts
                     try:
-                        matching_table_data.append({"Color": color.strip(), "PCS": int(float(pcs.strip()))})
+                        matching_table_data.append({"Color": color.strip(), "PCS": int(float(pcs_val.strip()))})
                     except ValueError:
                         continue
     else:
@@ -287,9 +287,7 @@ with st.form("product_form"):
         column_config={"PCS": st.column_config.NumberColumn("PCS", min_value=0)}
     )
 
-
-    total_pcs = sum(int(float(row.get("PCS", 0))) for row in matching_table if row.get("Color"))
-    st.markdown(f"**Total PCS:** {total_pcs}")
+    st.markdown("**Matching Table is optional**")
 
     raw_delivery = get_default(selected_data, "Delivery PCS", 0)
     try:
@@ -298,8 +296,7 @@ with st.form("product_form"):
         delivery_val = 0
 
     delivery_pcs = st.number_input("Delivery PCS", min_value=0, value=delivery_val)
-
-    difference_pcs = total_pcs - delivery_pcs
+    difference_pcs = pcs - delivery_pcs
     st.markdown(f"**Difference in PCS:** {difference_pcs}")
 
     submitted = st.form_submit_button("Save Product")
@@ -316,14 +313,14 @@ with st.form("product_form"):
             "D.NO.": dno.strip().upper(),
             "Company": company.strip().upper(),
             "Type": type_,
-            "PCS": total_pcs,
+            "PCS": pcs,
             "Rate": rate,
-            "Total": rate * total_pcs,
+            "Total": rate * pcs,
             "Matching": matching_str,
             "Image": image_url,
             "Created": get_default(selected_data, "Created", now),
             "Updated": now,
-            "Status": calculate_status(total_pcs),
+            "Status": calculate_status(pcs),
             "Delivery PCS": delivery_pcs,
             "Difference in PCS": difference_pcs
         }
