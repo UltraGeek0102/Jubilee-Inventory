@@ -1,40 +1,38 @@
-# jubilee_inventory_app.py
+# jubilee_inventory_app.py (Polished Full Version)
 
+# --- IMPORTS ---
 import streamlit as st
 import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
-from googleapiclient.errors import HttpError
-from PIL import Image
-# === OAUTH-BASED GOOGLE DRIVE AUTH ===
-from google_auth_oauthlib.flow import Flow
-from google.auth.transport.requests import Request
-import io
 from datetime import datetime
-from thefuzz import process
-import os
 from pathlib import Path
+from PIL import Image
 import base64
+import io
+import os
 
-# === CONFIG ===
+# OAuth-related
+from google_auth_oauthlib.flow import Flow
+from thefuzz import process
+
+# --- CONFIG ---
 SHEET_NAME = "jubilee-inventory"
-scopes = [
+SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive"
 ]
 
-# === AUTH: Service Account for Google Sheets ===
+# --- SETUP ---
 sheet_creds = Credentials.from_service_account_info(
-    st.secrets["gcp_service_account"], scopes=scopes
+    st.secrets["gcp_service_account"], scopes=SCOPES
 )
-
 client = gspread.authorize(sheet_creds)
-sheet = client.open("jubilee-inventory").sheet1
+sheet = client.open(SHEET_NAME).sheet1
 
-
-# === FUNCTION TO INITIALIZE GOOGLE DRIVE SERVICE (OAuth) ===
+# --- GOOGLE DRIVE (OAuth) ---
 def get_drive_service():
     if "drive_creds" not in st.session_state:
         flow = Flow.from_client_config(
@@ -50,7 +48,6 @@ def get_drive_service():
             scopes=["https://www.googleapis.com/auth/drive.file"],
             redirect_uri="http://localhost:8501"
         )
-
         auth_url, _ = flow.authorization_url(prompt="consent")
         st.warning("Authorize the app to upload to your Google Drive.")
         st.markdown(f"[Click here to authorize]({auth_url})", unsafe_allow_html=True)
@@ -65,153 +62,37 @@ def get_drive_service():
 
     return build("drive", "v3", credentials=creds)
 
-
-# === MOBILE RESPONSIVE STYLING ===
-st.markdown("""
-    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">
-    <style>
-        @media (max-width: 768px) {
-            .block-container {
-                padding: 1rem !important;
-            }
-            h1 {
-                font-size: 1.5rem !important;
-            }
-            h3, .metric-label {
-                font-size: 1.1rem !important;
-            }
-            .scroll-table-wrapper {
-                max-height: 300px;
-            }
-            .element-container:has(.stButton) {
-                width: 100% !important;
-            }
-        }
-        footer { visibility: hidden; }
-        .scroll-table-wrapper table {
-            font-size: 14px;
-            min-width: 600px;
-            word-break: break-word;
-        }
-    </style>
-""", unsafe_allow_html=True)
-
-# === DYNAMIC SIDEBAR CONFIG ===
-query_params = st.query_params
-sidebar_state = query_params.get("sidebar", "collapsed")
-
+# --- PAGE CONFIG ---
 st.set_page_config(
     page_title="Jubilee Inventory",
     page_icon="logo.png",
-    layout="centered",
-    initial_sidebar_state=sidebar_state
+    layout="centered"
 )
 
-# === FIXED TOGGLE SIDEBAR BUTTON ===
-toggle_label = "📁 Open Sidebar" if sidebar_state == "collapsed" else "❌ Close Sidebar"
-if st.button(toggle_label, key="toggle_sidebar"):
-    new_state = "expanded" if sidebar_state == "collapsed" else "collapsed"
-    st.query_params["sidebar"] = new_state
-    st.rerun()
-
-# === STYLE FOR FIXED BUTTON ===
+# --- STYLE ---
 st.markdown("""
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
     <style>
-    div[data-testid=\"stButton\"][key=\"toggle_sidebar\"] {
-        position: fixed;
-        top: 15px;
-        left: 15px;
-        z-index: 9999;
-    }
-    div[data-testid=\"stButton\"][key=\"toggle_sidebar\"] button {
-        background-color: #333;
-        color: white;
-        border-radius: 6px;
-        font-weight: bold;
-        padding: 8px 14px;
-        border: none;
-        box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
-    }
+        @media (max-width: 768px) {
+            .block-container { padding: 1rem !important; }
+            h1 { font-size: 1.5rem !important; }
+        }
+        footer { visibility: hidden; }
     </style>
 """, unsafe_allow_html=True)
 
-# === SAFE RERUN FUNCTION ===
-def safe_rerun():
-    st.session_state.force_reload = False
-    try:
-        st.rerun()
-    except Exception:
-        pass
+# --- GLOBAL VARS ---
+REQUIRED_COLUMNS = [
+    "D.NO.", "Company", "Type", "PCS", "Rate", "Total",
+    "Matching", "Image", "Created", "Updated", "Status"
+]
+LOGO_PATH = Path(__file__).parent / "logo.png"
 
-# === FORCE RERUN IF FLAGGED ===
-if st.session_state.get("force_reload"):
-    safe_rerun()
-
-# === CONTINUE WITH APP CODE (unchanged) ===
-...
-
-
-
-# === TOGGLE SIDEBAR BUTTON: Fixed for visibility when sidebar is closed ===
-st.markdown("""
-    <style>
-        .sidebar-toggle-button {
-            position: fixed;
-            top: 12px;
-            left: 12px;
-            z-index: 9999;
-            background-color: #222;
-            color: white;
-            padding: 8px 12px;
-            border-radius: 5px;
-            font-weight: bold;
-            cursor: pointer;
-            border: 1px solid #555;
-        }
-
-        /* Optional: add transition for sidebar animation */
-        [data-testid="stSidebar"] {
-            transition: all 0.4s ease;
-        }
-    </style>
-    <script>
-        const injectToggleButton = () => {
-            if (window.parent !== window) return;
-
-            const doc = window.parent.document;
-            const existing = doc.getElementById("sidebar-toggle-btn");
-            if (existing) return;
-
-            const button = doc.createElement("button");
-            button.id = "sidebar-toggle-btn";
-            button.innerText = "🔁 Toggle Sidebar";
-            button.className = "sidebar-toggle-button";
-            button.onclick = () => {
-                const sidebar = doc.querySelector("section[data-testid='stSidebar']");
-                if (sidebar) {
-                    if (sidebar.style.display === "none") {
-                        sidebar.style.display = "block";
-                    } else {
-                        sidebar.style.display = "none";
-                    }
-                }
-            };
-            doc.body.appendChild(button);
-        };
-
-        window.addEventListener("DOMContentLoaded", injectToggleButton);
-        setTimeout(injectToggleButton, 1000);
-    </script>
-""", unsafe_allow_html=True)
-
-# === PATH CONFIG ===
-logo_path = Path(__file__).parent / "logo.png"
-
-# === HELPERS ===
+# --- HELPERS ---
 def load_data():
     df = pd.DataFrame(sheet.get_all_records())
     df = df.drop_duplicates(subset=["D.NO."]).reset_index(drop=True)
-    for col in required_columns:
+    for col in REQUIRED_COLUMNS:
         if col not in df.columns:
             df[col] = ""
     df["Created"] = pd.to_datetime(df["Created"], errors="coerce")
@@ -222,57 +103,9 @@ def load_data():
     return df.sort_values("Created", ascending=False)
 
 def save_data(df):
-    df = df[required_columns]
+    df = df[REQUIRED_COLUMNS]
     sheet.clear()
     sheet.update([df.columns.tolist()] + df.astype(str).values.tolist())
-
-# === IMAGE UPLOAD FUNCTION ===
-def upload_image(image_file):
-    if image_file is None:
-        return ""
-
-    drive_service = get_drive_service()
-
-    image_file.seek(0)
-    file_bytes = image_file.read()
-    image_file.seek(0)
-
-    file_metadata = {
-        "name": image_file.name,
-        "parents": [st.secrets["drive"]["folder_id"]] if "folder_id" in st.secrets["drive"] else []
-    }
-
-    media = MediaIoBaseUpload(
-        io.BytesIO(file_bytes),
-        mimetype=image_file.type,
-        resumable=True
-    )
-
-    try:
-        uploaded = drive_service.files().create(
-            body=file_metadata,
-            media_body=media,
-            fields="id"
-        ).execute()
-        file_id = uploaded.get("id")
-        return f"https://drive.google.com/uc?id={file_id}"
-
-    except Exception as e:
-        st.error(f"❌ Google Drive upload failed: {e}")
-        return ""
-
-
-def make_clickable(url):
-    if not url:
-        return ""
-    if "drive.google.com/file/d/" in url:
-        file_id = url.split("/file/d/")[1].split("/")[0]
-        return f'<img src="https://drive.google.com/uc?id={file_id}" style="width: 100px; height: auto; border-radius: 8px;">'
-    if "drive.google.com/uc?id=" in url:
-        return f'<img src="{url}" style="width: 100px; height: auto; border-radius: 8px;">'
-    return ""
-
-
 
 def calculate_status(pcs):
     pcs = int(float(pcs or 0))
@@ -282,6 +115,34 @@ def calculate_status(pcs):
         return "LOW STOCK"
     else:
         return "IN STOCK"
+
+def upload_image(image_file):
+    if image_file is None:
+        return ""
+
+    drive_service = get_drive_service()
+    image_file.seek(0)
+    file_bytes = image_file.read()
+    image_file.seek(0)
+
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    filename = f"{Path(image_file.name).stem}_{timestamp}.png"
+    file_metadata = {
+        "name": filename,
+        "parents": [st.secrets["drive"].get("folder_id", "")]
+    }
+
+    media = MediaIoBaseUpload(io.BytesIO(file_bytes), mimetype=image_file.type, resumable=True)
+    uploaded = drive_service.files().create(body=file_metadata, media_body=media, fields="id").execute()
+    file_id = uploaded.get("id")
+    return f"https://drive.google.com/uc?id={file_id}"
+
+def make_clickable(url):
+    if not url:
+        return ""
+    if "drive.google.com/uc?id=" in url:
+        return f'<img src="{url}" style="width:100px; height:auto; border-radius:8px;">'
+    return ""
 
 def generate_html_report(data):
     return f"""
@@ -295,244 +156,123 @@ def generate_html_report(data):
     </body></html>
     """
 
-# === INIT ===
-required_columns = ["D.NO.", "Company", "Type", "PCS", "Rate", "Total", "Matching", "Image", "Created", "Updated", "Status"]
+def get_default(selected_data, key, default):
+    return selected_data.get(key, default) if isinstance(selected_data, pd.Series) else default
 
+# --- SESSION INIT ---
 if "force_reload" not in st.session_state:
     st.session_state.force_reload = False
-
 if "highlight_dno" not in st.session_state:
     st.session_state.highlight_dno = None
 
+# --- LOAD DATA ---
 df = load_data()
 
-# === FILTERING ===
-filtered_df = df.copy()
-type_filter = st.selectbox("Type", ["All"] + sorted(df["Type"].dropna().unique().tolist()))
-search = st.text_input("Search D.NO. or Company")
+# --- FILTERING ---
+type_filter = st.selectbox("Filter by Type", ["All"] + sorted(df["Type"].dropna().unique()))
+search_query = st.text_input("Search by D.NO. or Company")
 
+filtered_df = df.copy()
 if type_filter != "All":
     filtered_df = filtered_df[filtered_df["Type"] == type_filter]
-if search:
-    all_text = df["D.NO."].fillna("").tolist() + df["Company"].fillna("").tolist()
-    matched = process.extract(search, all_text, limit=20)
-    hits = set([m[0] for m in matched if m[1] > 60])
-    filtered_df = df[df["D.NO."].isin(hits) | df["Company"].isin(hits)]
+if search_query:
+    matches = process.extract(search_query, df["D.NO."].astype(str).tolist() + df["Company"].astype(str).tolist(), limit=20)
+    hits = {m[0] for m in matches if m[1] > 60}
+    filtered_df = df[df["D.NO."].astype(str).isin(hits) | df["Company"].astype(str).isin(hits)]
 
-# === Safe rerun ===
-def safe_rerun():
-    st.session_state.force_reload = False
-    try:
-        st.experimental_rerun()
-    except st.script_run_context.RerunException:
-        pass
-
-if st.session_state.get("force_reload"):
-    safe_rerun()
-
-# === BRAND HEADER ===
-st.markdown("""
-    <style>
-        .block-container { padding-top: 1rem; }
-        header { visibility: hidden; }
-    </style>
-""", unsafe_allow_html=True)
-
-col1, col2 = st.columns([1, 5])
-with col1:
-    if logo_path.exists():
-        st.image(str(logo_path), width=80)
-    else:
-        st.markdown("<p style='color:red;'>[Logo not found]</p>", unsafe_allow_html=True)
-with col2:
-    st.markdown("""
-        <div style='display: flex; flex-direction: column; justify-content: center; height: 100%;'>
-            <h1 style='margin: 0; font-size: 2rem;'>JUBILEE TEXTILE<br>PROCESSORS</h1>
-        </div>
-    """, unsafe_allow_html=True)
-
-
-# === SIDEBAR ===
+# --- SIDEBAR ---
 with st.sidebar:
-    if logo_path.exists():
-        logo_base64 = base64.b64encode(open(str(logo_path), "rb").read()).decode()
+    if LOGO_PATH.exists():
+        logo_base64 = base64.b64encode(open(str(LOGO_PATH), "rb").read()).decode()
         st.markdown(f"""
-        <div style='display:flex; justify-content:center; padding-bottom: 10px;'>
-            <img src='data:image/png;base64,{logo_base64}' width='160'>
-        </div>
+            <div style='text-align:center;'>
+                <img src='data:image/png;base64,{logo_base64}' width='150'>
+            </div>
         """, unsafe_allow_html=True)
-    else:
-        st.text("[Logo not found]")
-    st.markdown("<h3 style='text-align:center; color:white;'>JUBILEE TEXTILE PROCESSORS</h3>", unsafe_allow_html=True)
-    st.header("🔍 Filter")
+    st.header("📊 Inventory Summary")
     st.metric("Total PCS", int(df["PCS"].fillna(0).sum()))
     st.metric("Total Value", f"₹{df['Total'].fillna(0).sum():,.2f}")
 
     with st.expander("⬇️ Export Options"):
-        export_format = st.radio("Select format", ["CSV", "Excel"], horizontal=True)
-        export_df = filtered_df[required_columns]
+        export_format = st.radio("Format", ["CSV", "Excel"], horizontal=True)
+        export_df = filtered_df[REQUIRED_COLUMNS]
         if export_format == "CSV":
-            csv = export_df.to_csv(index=False).encode("utf-8")
-            st.download_button("Download CSV", csv, "jubilee_inventory.csv", "text/csv")
+            csv_data = export_df.to_csv(index=False).encode("utf-8")
+            st.download_button("Download CSV", csv_data, "jubilee_inventory.csv", "text/csv")
         else:
-            from io import BytesIO
-            excel_io = BytesIO()
-            with pd.ExcelWriter(excel_io, engine="xlsxwriter") as writer:
+            buffer = io.BytesIO()
+            with pd.ExcelWriter(buffer, engine="xlsxwriter") as writer:
                 export_df.to_excel(writer, index=False, sheet_name="Inventory")
-            st.download_button("Download Excel", excel_io.getvalue(), "jubilee_inventory.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            st.download_button("Download Excel", buffer.getvalue(), "jubilee_inventory.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
     with st.expander("🧾 Printable Report"):
-        html_report = generate_html_report(filtered_df[required_columns])
-        st.download_button("Download HTML Report", html_report.encode(), "jubilee_inventory_report.html", "text/html")
+        html_report = generate_html_report(export_df)
+        st.download_button("Download HTML Report", html_report.encode(), "inventory_report.html", "text/html")
 
-# === SCROLLABLE DATA TABLE ===
-st.markdown("""
-    <style>
-    .scroll-table-wrapper {
-        max-height: 600px;
-        overflow-y: auto;
-        overflow-x: auto;
-        border: 1px solid #444;
-        border-radius: 8px;
-        padding: 10px;
-        background-color: #111;
-    }
-    .scroll-table-wrapper table {
-        color: white;
-        font-size: 15px;
-        min-width: 1000px;
-        border-spacing: 0;
-        border-collapse: collapse;
-    }
-    .scroll-table-wrapper th, .scroll-table-wrapper td {
-        padding: 8px 12px;
-    }
-    .scroll-table-wrapper thead {
-        background-color: #222;
-    }
-    </style>
-""", unsafe_allow_html=True)
+# --- TABLE ---
+st.markdown("### 📋 Inventory Table")
+filtered_df["Image"] = filtered_df["Image"].apply(make_clickable)
+st.markdown("""<div style='overflow-x:auto;'>""" +
+            filtered_df[REQUIRED_COLUMNS].to_html(escape=False, index=False) +
+            "</div>", unsafe_allow_html=True)
 
-
-st.markdown("### 📊 Inventory Table")
-highlight_dno = st.session_state.get("highlight_dno")
-highlighted_df = filtered_df.copy()
-
-with st.container():
-    if highlight_dno:
-        highlighted_df["__highlight__"] = highlighted_df["D.NO."].apply(
-            lambda x: "background-color: #ffe599" if x == highlight_dno else "")
-        html_table = highlighted_df.drop(columns="__highlight__") \
-            .assign(Image=highlighted_df["Image"].apply(make_clickable)) \
-            .style.apply(lambda x: highlighted_df["__highlight__"], axis=1) \
-            .to_html(escape=False, index=False)
-    else:
-        html_table = filtered_df.assign(Image=filtered_df["Image"].apply(make_clickable)) \
-            .to_html(escape=False, index=False)
-
-    st.markdown('<div class="scroll-table-wrapper">' + html_table + '</div>', unsafe_allow_html=True)
-
-
-# === FORM: ADD / EDIT PRODUCT ===
+# --- FORM: ADD / EDIT PRODUCT ---
 st.markdown("---")
 st.subheader("➕ Add / Edit Product")
 form_mode = st.radio("Mode", ["Add New", "Edit Existing"], horizontal=True)
-selected_dno = st.selectbox("Select D.NO. to Edit", sorted(filtered_df["D.NO."].dropna().unique())) if form_mode == "Edit Existing" else ""
-
-if form_mode == "Edit Existing" and selected_dno:
-    selected_row = df[df["D.NO."] == selected_dno]
-    selected_data = selected_row.iloc[0] if not selected_row.empty else {}
-else:
-    selected_data = {}
-
-def get_default(key, default):
-    if isinstance(selected_data, pd.Series) and key in selected_data:
-        return selected_data.get(key, default)
-    return default
+selected_dno = st.selectbox("Select D.NO.", sorted(df["D.NO."].dropna().unique())) if form_mode == "Edit Existing" else ""
+selected_row = df[df["D.NO."] == selected_dno].iloc[0] if form_mode == "Edit Existing" and selected_dno else {}
 
 with st.form("product_form"):
     col1, col2 = st.columns(2)
     with col1:
-        company = st.text_input("Company", value=get_default("Company", ""))
-        dno = st.text_input("D.NO.", value=get_default("D.NO.", ""))
-        rate = st.number_input("Rate", min_value=0.0, value=float(get_default("Rate", 0)))
-        pcs = st.number_input("PCS", min_value=0, value=int(float(get_default("PCS", 0))))
+        company = st.text_input("Company", value=get_default(selected_row, "Company", ""))
+        dno = st.text_input("D.NO.", value=get_default(selected_row, "D.NO.", ""))
+        rate = st.number_input("Rate", value=float(get_default(selected_row, "Rate", 0)), min_value=0.0)
+        pcs = st.number_input("PCS", value=int(float(get_default(selected_row, "PCS", 0))), min_value=0)
     with col2:
-        type_options = ["WITH LACE", "WITHOUT LACE"]
-        default_type = get_default("Type", "WITH LACE")
-        type_ = st.selectbox("Type", type_options, index=type_options.index(default_type) if default_type in type_options else 0)
-        matching_table = st.data_editor(
-            [{"Color": "", "PCS": 0}] if get_default("Matching", "") == "" else
-            [{"Color": m.split(":")[0], "PCS": int(m.split(":")[1])} for m in get_default("Matching", "").split(",") if ":" in m],
-            num_rows="dynamic", key="match_editor",
-            column_config={"PCS": st.column_config.NumberColumn("PCS", min_value=0)}
-        )
+        type_ = st.selectbox("Type", ["WITH LACE", "WITHOUT LACE"], index=0 if get_default(selected_row, "Type", "") == "WITH LACE" else 1)
+        matching = st.text_area("Matching (Color:PCS, comma-separated)", value=get_default(selected_row, "Matching", ""))
         image_file = st.file_uploader("Upload Image", type=["jpg", "jpeg", "png"])
-
-        # === Preview uploaded image or existing one ===
-        preview_url = get_default("Image", "")
         if image_file:
-            st.image(image_file, caption="Preview (New Upload)", use_container_width=True)
-        elif preview_url:
-            st.image(preview_url, caption="Preview (Current)", use_container_width=True)
+            st.image(image_file, caption="Preview", use_container_width=True)
+        elif selected_row.get("Image"):
+            st.image(selected_row.get("Image"), caption="Current Image", use_container_width=True)
 
-    submitted = st.form_submit_button("Save Product")
+    if st.form_submit_button("Save Product"):
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        matching_clean = ", ".join([m.strip() for m in matching.split(",") if ":" in m])
+        total_pcs = sum([int(m.split(":")[1]) for m in matching_clean.split(",") if ":" in m])
+        image_url = upload_image(image_file) if image_file else selected_row.get("Image", "")
 
-    if submitted:
-        match_entries, total_pcs = [], 0
-        for row in matching_table:
-            color_val = str(row.get("Color") or "").strip()
-            pcs_val = int(float(row.get("PCS") or 0))
-            if color_val:
-                match_entries.append(f"{color_val}:{pcs_val}")
-                total_pcs += pcs_val
+        df = df[df["D.NO."] != dno]
+        new_row = {
+            "D.NO.": dno.strip().upper(),
+            "Company": company.strip().upper(),
+            "Type": type_,
+            "PCS": total_pcs,
+            "Rate": rate,
+            "Total": total_pcs * rate,
+            "Matching": matching_clean,
+            "Image": image_url,
+            "Created": get_default(selected_row, "Created", now),
+            "Updated": now,
+            "Status": calculate_status(total_pcs)
+        }
+        df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+        save_data(df)
+        st.success("✅ Product saved.")
+        st.session_state.force_reload = True
+        st.rerun()
 
-        if not company or not dno:
-            st.warning("Company and D.NO. are required.")
-        else:
-            mode = "edit" if form_mode == "Edit Existing" else "create"
-
-            # ✅ STEP 2: Handle image logic for create/edit mode
-            if mode == "edit":
-                if image_file is not None:
-                    image_url = upload_image(image_file)
-                else:
-                    image_url = selected_data.get("Image", "")
-            else:
-                image_url = upload_image(image_file) if image_file else ""
-
-            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            df = df[df["D.NO."] != dno]
-            df = pd.concat([df, pd.DataFrame([{
-                "D.NO.": dno.strip().upper(),
-                "Company": company.strip().upper(),
-                "Type": type_,
-                "PCS": total_pcs,
-                "Rate": rate,
-                "Total": rate * total_pcs,
-                "Matching": ", ".join(match_entries),
-                "Image": image_url,
-                "Updated": now,
-                "Created": get_default("Created", now),
-                "Status": calculate_status(total_pcs)
-            }])], ignore_index=True)
-            save_data(df)
-            st.success("Changes saved successfully.")
-            st.toast("✅ Product updated.")
-            st.session_state.force_reload = True
-            st.session_state.highlight_dno = dno.strip().upper()
-
-# === DELETE ===
+# --- DELETE ---
 st.markdown("---")
 st.subheader("🗑️ Delete Product")
 if not df.empty:
     del_dno = st.selectbox("Select D.NO. to Delete", df["D.NO."].unique())
     if st.button("Confirm Delete"):
-        if del_dno and "D.NO." in df.columns:
-            df = df[df["D.NO."] != del_dno]
-            save_data(df)
-            st.success(f"Deleted {del_dno}")
-            st.toast("🗑️ Product deleted.")
-            st.session_state.force_reload = True
-        else:
-            st.warning("⚠️ Unable to delete: Invalid D.NO. or missing column.")
+        df = df[df["D.NO."] != del_dno]
+        save_data(df)
+        st.success(f"Deleted {del_dno}")
+        st.session_state.force_reload = True
+        st.rerun()
