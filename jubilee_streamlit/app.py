@@ -131,32 +131,57 @@ def generate_html_report(data):
     </body></html>
     """
 
-def upload_image_to_drive(file):
-    try:
-        drive_service = build("drive", "v3", credentials=sheet_creds)
-        file_metadata = {
-            "name": file.name,
-            "parents": ["1HLGXKRWbY3B9jFVa44tVhf2PEFwF-Ota"]
-        }
-        media = MediaIoBaseUpload(file, mimetype=file.type)
+def upload_image_to_drive(image_file):
+    from googleapiclient.discovery import build
+    from googleapiclient.http import MediaIoBaseUpload
+    from google.oauth2.credentials import Credentials
+    import uuid
 
-        uploaded_file = drive_service.files().create(
+    # Load user credentials from st.session_state (assumes OAuth flow is completed)
+    creds = Credentials(
+        token=st.session_state["token"]["access_token"],
+        refresh_token=st.session_state["token"].get("refresh_token"),
+        token_uri="https://oauth2.googleapis.com/token",
+        client_id=st.secrets["gcp_oauth"]["client_id"],
+        client_secret=st.secrets["gcp_oauth"]["client_secret"],
+        scopes=SCOPES
+    )
+
+    service = build("drive", "v3", credentials=creds)
+    file_metadata = {
+        "name": f"{uuid.uuid4()}.jpg",
+        "parents": [st.secrets["gcp_oauth"]["upload_folder_id"]]
+    }
+
+    image_stream = io.BytesIO(image_file.read())
+    media = MediaIoBaseUpload(image_stream, mimetype=image_file.type)
+
+    try:
+        file = service.files().create(
             body=file_metadata,
             media_body=media,
             fields="id"
         ).execute()
 
-        # Make public
-        drive_service.permissions().create(
-            fileId=uploaded_file["id"],
-            body={"role": "reader", "type": "anyone"},
+        file_id = file.get("id")
+
+        # Make the file publicly viewable
+        service.permissions().create(
+            fileId=file_id,
+            body={"type": "anyone", "role": "reader"},
         ).execute()
 
-        return f"https://drive.google.com/uc?id={uploaded_file['id']}"
-    
-    except HttpError as e:
+        return f"https://drive.google.com/uc?id={file_id}"
+    except Exception as e:
         st.error(f"Google Drive upload failed: {e}")
-        raise
+        return ""
+
+def render_image_thumbnails(df):
+    df = df.copy()
+    df["Image"] = df["Image"].apply(lambda url: f'<img src="{url}" width="60">' if url else "")
+    return df
+
+
 
 # --- MAIN PAGE LOGO ---
 if LOGO_PATH.exists():
