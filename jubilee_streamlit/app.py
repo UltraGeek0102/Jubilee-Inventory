@@ -145,7 +145,7 @@ def upload_image_to_drive(image_file):
     media = MediaIoBaseUpload(image_file, mimetype=image_file.type)
     file_metadata = {
         "name": filename,
-        "parents": [st.secrets["1HLGXKRWbY3B9jFVa44tVhf2PEFwF-Ota"]]  # Your shared folder ID
+        "parents": ["1HLGXKRWbY3B9jFVa44tVhf2PEFwF-Ota"]
     }
 
     uploaded_file = drive_service.files().create(
