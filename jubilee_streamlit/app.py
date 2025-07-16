@@ -15,6 +15,7 @@ import io
 import os
 from google_auth_oauthlib.flow import Flow
 from thefuzz import process
+from googleapiclient.errors import HttpError
 
 # --- CONFIG ---
 SHEET_NAME = "jubilee-inventory"
@@ -130,38 +131,32 @@ def generate_html_report(data):
     </body></html>
     """
 
-def upload_image_to_drive(image_file):
-    if image_file is None:
-        return ""
+def upload_image_to_drive(file):
+    try:
+        drive_service = build("drive", "v3", credentials=sheet_creds)
+        file_metadata = {
+            "name": file.name,
+            "parents": ["1HLGXKRWbY3B9jFVa44tVhf2PEFwF-Ota"]
+        }
+        media = MediaIoBaseUpload(file, mimetype=file.type)
 
-    creds = sheet_creds
-    drive_service = build("drive", "v3", credentials=creds)
+        uploaded_file = drive_service.files().create(
+            body=file_metadata,
+            media_body=media,
+            fields="id"
+        ).execute()
 
-    # Create a filename with timestamp
-    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
-    filename = f"Jubilee_{timestamp}_{image_file.name}"
+        # Make public
+        drive_service.permissions().create(
+            fileId=uploaded_file["id"],
+            body={"role": "reader", "type": "anyone"},
+        ).execute()
 
-    # Upload file as media
-    media = MediaIoBaseUpload(image_file, mimetype=image_file.type)
-    file_metadata = {
-        "name": filename,
-        "parents": ["1HLGXKRWbY3B9jFVa44tVhf2PEFwF-Ota"]
-    }
-
-    uploaded_file = drive_service.files().create(
-        body=file_metadata,
-        media_body=media,
-        fields="id"
-    ).execute()
-
-    # Make it publicly viewable
-    drive_service.permissions().create(
-        fileId=uploaded_file["id"],
-        body={"role": "reader", "type": "anyone"},
-    ).execute()
-
-    file_id = uploaded_file["id"]
-    return f"https://drive.google.com/uc?id={file_id}"
+        return f"https://drive.google.com/uc?id={uploaded_file['id']}"
+    
+    except HttpError as e:
+        st.error(f"Google Drive upload failed: {e}")
+        raise
 
 # --- MAIN PAGE LOGO ---
 if LOGO_PATH.exists():
