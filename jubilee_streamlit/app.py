@@ -61,12 +61,16 @@ st.markdown("""
         /* SCROLLABLE TABLE STYLING */
         .scroll-table-wrapper {
             max-height: 500px;
+            overflow-x: auto;
             overflow-y: auto;
             border: 1px solid #555;
             border-radius: 6px;
             padding: 10px;
             background-color: #111;
+            display: block;  /* ⬅️ ADD THIS */
+            white-space: nowrap;  /* ⬅️ ADD THIS */
         }
+
 
         .scroll-table-wrapper table {
             width: 100%;
