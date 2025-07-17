@@ -355,36 +355,6 @@ elif export_format == "Printable HTML":
     st.download_button("Download HTML Report", html_report.encode(), "jubilee_inventory.html", mime="text/html")
 
 
-# Inject custom CSS to make the table scrollable and styled
-st.markdown("""
-    <style>
-    .scroll-table-wrapper {
-        overflow-x: auto;
-        border: 1px solid #444;
-        border-radius: 5px;
-        max-height: 500px;
-    }
-
-    .scroll-table-wrapper table {
-        width: 100%;
-        border-collapse: collapse;
-    }
-
-    .scroll-table-wrapper th, .scroll-table-wrapper td {
-        border: 1px solid #444;
-        padding: 8px;
-        text-align: left;
-        color: white;
-    }
-
-    .scroll-table-wrapper img {
-        display: block;
-        margin: 0 auto;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
-
 # --- DISPLAY SORTABLE TABLE WITH IMAGES ---
 def render_image_thumbnails(df):
     df = df.copy()
