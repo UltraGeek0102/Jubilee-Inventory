@@ -310,7 +310,7 @@ with st.sidebar:
 
 
 # --- FILTER + EXPORT ---
-df = load_data()
+df = st.session_state.df  
 st.subheader("🔍 Filter/Search")
 search_term = st.text_input("Search by D.NO. or Company")
 type_filter = st.selectbox("Filter by Type", ["All"] + sorted(df["Type"].dropna().unique()))
