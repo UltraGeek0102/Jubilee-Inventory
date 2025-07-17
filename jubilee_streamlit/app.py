@@ -97,7 +97,7 @@ st.markdown("""
         border-right: 1px solid #555;
     }
     </style>
-
+    """, unsafe_allow_html=True)
 
 # --- UTILS ---
 def calculate_status(pcs):
