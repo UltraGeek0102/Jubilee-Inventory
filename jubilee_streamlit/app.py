@@ -57,20 +57,37 @@ st.markdown("""
             h1 { font-size: 1.5rem !important; }
         }
         footer { visibility: hidden; }
+
+        /* SCROLLABLE TABLE STYLING */
         .scroll-table-wrapper {
-            max-height: 600px;
+            max-height: 500px;
             overflow-y: auto;
             border: 1px solid #555;
             border-radius: 6px;
             padding: 10px;
+            background-color: #111;
         }
+
         .scroll-table-wrapper table {
             width: 100%;
-            font-size: 15px;
+            border-collapse: collapse;
+        }
+
+        .scroll-table-wrapper th,
+        .scroll-table-wrapper td {
+            border: 1px solid #777;
+            padding: 8px;
+            text-align: left;
             color: white;
+        }
+
+        .scroll-table-wrapper img {
+            display: block;
+            margin: auto;
         }
     </style>
 """, unsafe_allow_html=True)
+
 
 # --- GLOBAL VARS ---
 REQUIRED_COLUMNS = [
