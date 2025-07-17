@@ -48,18 +48,56 @@ if FAVICON_PATH.exists():
 st.markdown("""
     <meta name='viewport' content='width=device-width, initial-scale=1.0'>
     <style>
-        @media (max-width: 768px) { .block-container { padding: 1rem !important; } }
-        footer { visibility: hidden; }
-        .scroll-table-wrapper {
-            max-height: 500px; overflow-y: auto; border: 1px solid #555;
-            border-radius: 6px; padding: 10px; background-color: #111;
-        }
-        .scroll-table-wrapper th, .scroll-table-wrapper td {
-            border: 1px solid #777; padding: 8px; color: white;
-        }
-        .scroll-table-wrapper img { display: block; margin: auto; }
+    .scroll-table-wrapper {
+        max-height: 500px;
+        overflow-y: auto;
+        overflow-x: auto;
+        border: 1px solid #555;
+        border-radius: 6px;
+        background-color: #111;
+    }
+    
+    .scroll-table-wrapper table {
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+        min-width: 1000px;
+    }
+    
+    .scroll-table-wrapper thead th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background-color: #222;
+        color: white;
+        padding: 8px;
+        border-bottom: 1px solid #777;
+        text-align: left;
+    }
+    
+    .scroll-table-wrapper td {
+        color: white;
+        padding: 8px;
+        border-bottom: 1px solid #333;
+        word-wrap: break-word;
+    }
+    
+    .scroll-table-wrapper img {
+        display: block;
+        margin: auto;
+    }
+    
+    /* Sticky first column */
+    .scroll-table-wrapper th:first-child,
+    .scroll-table-wrapper td:first-child {
+        position: sticky;
+        left: 0;
+        background-color: #222;
+        z-index: 3;
+        border-right: 1px solid #555;
+    }
     </style>
-""", unsafe_allow_html=True)
+
 
 # --- UTILS ---
 def calculate_status(pcs):
