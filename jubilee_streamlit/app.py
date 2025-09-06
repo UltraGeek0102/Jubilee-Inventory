@@ -9,7 +9,6 @@ from datetime import datetime
 
 import pandas as pd
 from PIL import Image
-
 import streamlit as st
 
 # --- PAGE CONFIG / THEME ---
@@ -27,10 +26,12 @@ DARK_CSS = """
 :root { --bg:#121212; --panel:#1e1e1e; --border:#2a2a2a; --text:#ffffff; }
 html, body, [data-testid="stAppViewContainer"] { background-color: var(--bg); color: var(--text); }
 .block-container { padding-top: 0.5rem; padding-bottom: 1rem; }
+
 .header-box {
   background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
   padding: 16px 20px; display:flex; align-items:center; gap:14px;
 }
+
 .toolbar {
   background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
   padding: 10px; display:flex; gap:10px; align-items:center; flex-wrap: wrap;
@@ -42,6 +43,7 @@ html, body, [data-testid="stAppViewContainer"] { background-color: var(--bg); co
 .toolbar .stButton>button:hover { background:#2a2a2a; }
 [data-testid="stHorizontalBlock"] { gap: 0.75rem !important; } /* column gaps */
 div[data-testid="stDataFrame"] { border: 1px solid var(--border); border-radius: 8px; }
+
 .img-preview {
   border: 1px solid var(--border); border-radius: 8px; padding: 12px; background: var(--panel);
 }
@@ -118,9 +120,7 @@ def delete_products(ids):
 
 # --- MATCHING HELPERS ---
 def parse_matching_string(matching: str):
-    # "Red:2, Blue:3" -> list of (color, pcs)
-    pairs = []
-    total = 0
+    pairs, total = [], 0
     if matching:
         for part in matching.split(","):
             if ":" in part:
@@ -134,9 +134,7 @@ def parse_matching_string(matching: str):
     return pairs, total
 
 def build_matching_string(pairs):
-    # list of (color, pcs) -> "Color:pcs, Color:pcs"
-    parts = []
-    total = 0
+    parts, total = [], 0
     for color, pcs in pairs:
         color = (color or "").strip()
         pcs_str = str(pcs).strip()
@@ -179,7 +177,14 @@ def header():
             if LOGO_PATH.exists():
                 st.image(str(LOGO_PATH), width=60)
         with col_title:
-            st.markdown('<div class="header-box"><h2 style="margin:0">Jubilee Textile Processors</h2></div>', unsafe_allow_html=True)
+            st.markdown(
+                '<div class="header-box"><h2 style="margin:0">Jubilee Textile Processors</h2></div>',
+                unsafe_allow_html=True
+            )
+
+# (Keep your toolbar(), load_table_dataframe(), filter_df(), selectable_table(), matching_editor(), add_or_edit_dialog()
+# and the main script below this point unchanged, ensuring every widget has a unique key like key="table_selected_ids_main".)
+
 
 def toolbar():
     box = st.container(border=True, gap="small")
@@ -529,6 +534,7 @@ if actions["imp_csv"]:
                 st.success(f"Imported {imported} records. Refresh to view.")
         except Exception as e:
             st.error(f"Import failed: {e}")
+
 
 
 
