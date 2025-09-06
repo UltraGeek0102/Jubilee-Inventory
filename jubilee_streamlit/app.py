@@ -10,7 +10,7 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 from PIL import Image
-
+import numpy as np
 from streamlit_gsheets import GSheetsConnection
 
 from googleapiclient.discovery import build
@@ -126,18 +126,16 @@ def upload_image_to_drive(image_file) -> str:
         st.error(f"Image upload failed: {e}")
         return ""
 
-def load_data(conn: GSheetsConnection, worksheet: str = None) -> pd.DataFrame:
+def load_data(conn, worksheet=None):
     try:
-        # ttl=0 to avoid stale data if multiple users edit
         df = conn.read(worksheet=worksheet, ttl=0)
-        if df is None or df.empty:
+        if df is None or len(getattr(df, "columns", [])) == 0:
             df = pd.DataFrame(columns=REQUIRED_COLUMNS)
         df = ensure_required_columns(df)
-        # drop duplicate D.NO.
         if "D.NO." in df.columns:
             df = df.drop_duplicates("D.NO.").reset_index(drop=True)
-        # compute Status; parse times and sort
-        df["Status"] = df.get("PCS", pd.Series(*len(df))).apply(calculate_status)
+        pcs_series = df["PCS"] if "PCS" in df.columns else pd.Series(np.zeros(len(df), dtype=int))
+        df["Status"] = pcs_series.apply(calculate_status)
         df = parse_datetimes(df)
         if "Created" in df.columns:
             df = df.sort_values("Created", ascending=False, na_position="last").reset_index(drop=True)
@@ -195,27 +193,24 @@ if not df.empty:
     # editable data editor; avoid editing Image HTML directly
     display_cols = [c for c in df.columns if c != "Image"]
     edited = st.data_editor(
-        df[display_cols],
-        num_rows="dynamic",
-        use_container_width=True,
-        disabled=["Status", "Created", "Updated"],  # Status is derived; timestamps are managed automatically
-        key="editor",
+    df[display_cols],
+    num_rows="dynamic",
+    use_container_width=True,
+    disabled=["Status", "Created", "Updated"],
+    key="editor",
     )
-
-    # derive Status and timestamps
     if isinstance(edited, pd.DataFrame):
-        edited["Status"] = edited.get("PCS", pd.Series(*len(edited))).apply(calculate_status)
+        pcs_series = edited["PCS"] if "PCS" in edited.columns else pd.Series(np.zeros(len(edited), dtype=int))
+        edited["Status"] = pcs_series.apply(calculate_status)
         now = datetime.now()
-        # set Created if empty
         if "Created" in edited.columns:
             created_mask = edited["Created"].isna() | (edited["Created"] == "") | (edited["Created"].astype(str) == "NaT")
             edited.loc[created_mask, "Created"] = now
         if "Updated" in edited.columns:
             edited["Updated"] = now
-
-        # reintegrate Image column untouched
         if "Image" in df.columns:
             edited["Image"] = df["Image"]
+
 
         if st.button("Save"):
             save_data(conn, edited, worksheet=worksheet_name)
@@ -248,3 +243,4 @@ if img_file:
 
 st.divider()
 st.caption("Powered by Google Sheets + Streamlit Connection. Images stored in Drive with minimal scopes.")
+
