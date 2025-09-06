@@ -9,3 +9,4 @@ Pillow
 altair
 openpyxl
 XlsxWriter
+st-gsheets-connection
