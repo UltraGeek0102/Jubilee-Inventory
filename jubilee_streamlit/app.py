@@ -197,29 +197,45 @@ def header():
 
 def toolbar():
     st.markdown('<div class="toolbar">', unsafe_allow_html=True)
-    c = st.columns([0.25, 0.15, 0.12, 0.12, 0.15, 0.16, 0.22, 0.12, 0.12])
-    with c:
+
+    c0, c1, c2, c3, c4, c5, c6, c7, c8 = st.columns([0.25, 0.15, 0.12, 0.12, 0.15, 0.16, 0.22, 0.12, 0.12])
+
+    with c0:
         search = st.text_input("Search", key="search", label_visibility="collapsed", placeholder="Search...")
-    with c[1]:
+
+    with c1:
         type_filter = st.selectbox("Type", ["All", "WITH LACE", "WITHOUT LACE"], index=0, label_visibility="collapsed")
-    with c[24]:
+
+    with c2:
         add_click = st.button("Add Product")
-    with c[25]:
+
+    with c3:
         edit_click = st.button("Edit Product")
-    with c[26]:
+
+    with c4:
         del_click = st.button("Delete Product(s)")
-    with c[27]:
+
+    with c5:
         exp_match = st.button("Export MATCHING (CSV)")
-    with c[28]:
+
+    with c6:
         exp_all_csv = st.button("Export All (CSV)")
-    with c[29]:
+
+    with c7:
         exp_all_xlsx = st.button("Export All (Excel)")
-    with c[30]:
+
+    with c8:
         imp_csv = st.button("Import CSV")
+
     st.markdown('</div>', unsafe_allow_html=True)
-    return dict(search=search, type_filter=type_filter, add=add_click, edit=edit_click,
-                delete=del_click, exp_match=exp_match, exp_all_csv=exp_all_csv,
-                exp_all_xlsx=exp_all_xlsx, imp_csv=imp_csv)
+
+    return dict(
+        search=search, type_filter=type_filter,
+        add=add_click, edit=edit_click, delete=del_click,
+        exp_match=exp_match, exp_all_csv=exp_all_csv,
+        exp_all_xlsx=exp_all_xlsx, imp_csv=imp_csv
+    )
+
 
 def load_table_dataframe():
     # Build DataFrame with computed Pending and a thumbnail helper column
@@ -534,4 +550,5 @@ if actions["imp_csv"]:
                 st.success(f"Imported {imported} records. Refresh to view.")
         except Exception as e:
             st.error(f"Import failed: {e}")
+
 
