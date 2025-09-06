@@ -242,7 +242,7 @@ def selectable_table(df: pd.DataFrame):
         # Show a grid-like editor but non-editable; selection integers input
         st.caption("Select rows by ID using the control below. The table is read-only; use Add/Edit for changes.")
         st.dataframe(df, use_container_width=True)
-        selected_ids_csv = st.text_input("Selected IDs (comma-separated)", value="", placeholder="e.g. 1,3,8")
+        selected_ids_csv = st.text_input(     "Selected IDs (comma-separated)",     value="",     placeholder="e.g. 1,3,8",     key="selected_ids_csv_main"  # unique key )
         try:
             selected_ids = [int(x) for x in selected_ids_csv.split(",") if x.strip().isdigit()]
         except Exception:
@@ -250,7 +250,7 @@ def selectable_table(df: pd.DataFrame):
     with right:
         st.markdown('<div class="img-preview">', unsafe_allow_html=True)
         st.subheader("Image Preview")
-        preview_id = st.number_input("Preview by ID", min_value=0, step=1, value=0)
+        preview_id = st.number_input(     "Preview by ID",     min_value=0,     step=1,     value=0,     key="preview_id_main"  # unique key )
         if preview_id:
             row = df[df["ID"] == preview_id]
             if not row.empty:
@@ -364,11 +364,11 @@ with content:
     with left:
         st.caption("Select rows by ID. Table is read-only; use Add/Edit for changes.", help="Use filters above to narrow results.")
         st.dataframe(df_view, use_container_width=True, height=420)  # shorter table avoids crowding below
-        selected_ids_csv = st.text_input("Selected IDs (comma-separated)", value="", placeholder="e.g. 1,3,8")
+        selected_ids_csv = st.text_input(     "Selected IDs (comma-separated)",     value="",     placeholder="e.g. 1,3,8",     key="selected_ids_csv_main"  # unique key )
     with right:
         st.markdown('<div class="img-preview">', unsafe_allow_html=True)
         st.subheader("Image Preview")
-        preview_id = st.number_input("Preview by ID", min_value=0, step=1, value=0)
+        preview_id = st.number_input(     "Preview by ID",     min_value=0,     step=1,     value=0,     key="preview_id_main"  # unique key )
         # ... image preview code ...
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -529,6 +529,7 @@ if actions["imp_csv"]:
                 st.success(f"Imported {imported} records. Refresh to view.")
         except Exception as e:
             st.error(f"Import failed: {e}")
+
 
 
 
