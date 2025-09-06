@@ -184,13 +184,16 @@ def show_thumbnail(path: str, size=(60, 60)) -> Image.Image | None:
 
 # --- UI HELPERS ---
 def header():
-    with st.container():
-        cols = st.columns([0.08, 0.92])
-        with cols:
-            if LOGO_PATH.exists():
-                st.image(str(LOGO_PATH), width=60)
-        with cols[1]:
-            st.markdown('<div class="header-box"><h2 style="margin:0">Jubilee Textile Processors</h2></div>', unsafe_allow_html=True)
+    col_logo, col_title = st.columns([0.08, 0.92])
+    with col_logo:
+        if LOGO_PATH.exists():
+            st.image(str(LOGO_PATH), width=60)
+    with col_title:
+        st.markdown(
+            '<div class="header-box"><h2 style="margin:0">Jubilee Textile Processors</h2></div>',
+            unsafe_allow_html=True
+        )
+
 
 def toolbar():
     st.markdown('<div class="toolbar">', unsafe_allow_html=True)
@@ -531,3 +534,4 @@ if actions["imp_csv"]:
                 st.success(f"Imported {imported} records. Refresh to view.")
         except Exception as e:
             st.error(f"Import failed: {e}")
+
