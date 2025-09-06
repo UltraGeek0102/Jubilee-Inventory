@@ -24,40 +24,28 @@ COMPRESSED_DIR.mkdir(exist_ok=True)
 
 DARK_CSS = """
 <style>
-:root {
-  --bg: #121212;
-  --panel: #1e1e1e;
-  --border: #333;
-  --text: #ffffff;
-  --accent: #2c2c2c;
-}
-html, body, [data-testid="stAppViewContainer"] {
-  background-color: var(--bg);
-  color: var(--text);
-}
-.block-container { padding-top: 1rem; }
+:root { --bg:#121212; --panel:#1e1e1e; --border:#2a2a2a; --text:#ffffff; }
+html, body, [data-testid="stAppViewContainer"] { background-color: var(--bg); color: var(--text); }
+.block-container { padding-top: 0.5rem; padding-bottom: 1rem; }
 .header-box {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 10px 16px;
-  display: flex; align-items: center; gap: 14px;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+  padding: 16px 20px; display:flex; align-items:center; gap:14px;
 }
 .toolbar {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 8px 10px;
-  display: flex; gap: 8px; align-items: center;
+  background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+  padding: 10px; display:flex; gap:10px; align-items:center; flex-wrap: wrap;
 }
+.toolbar .stButton>button, .stButton>button {
+  padding: 8px 14px; border: 1px solid var(--border); background:#242424; color:#fff;
+  border-radius: 8px; line-height: 1.1; font-weight: 500;
+}
+.toolbar .stButton>button:hover { background:#2a2a2a; }
+[data-testid="stHorizontalBlock"] { gap: 0.75rem !important; } /* column gaps */
+div[data-testid="stDataFrame"] { border: 1px solid var(--border); border-radius: 8px; }
 .img-preview {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 10px;
-  text-align: center;
-  background: var(--panel);
+  border: 1px solid var(--border); border-radius: 8px; padding: 12px; background: var(--panel);
 }
-hr { border: 1px solid var(--border); }
+.tag-muted { color:#a0a0a0; font-size: 0.9rem; }
 </style>
 """
 st.markdown(DARK_CSS, unsafe_allow_html=True)
@@ -184,57 +172,31 @@ def show_thumbnail(path: str, size=(60, 60)) -> Image.Image | None:
 
 # --- UI HELPERS ---
 def header():
-    col_logo, col_title = st.columns([0.08, 0.92])
-    with col_logo:
-        if LOGO_PATH.exists():
-            st.image(str(LOGO_PATH), width=60)
-    with col_title:
-        st.markdown(
-            '<div class="header-box"><h2 style="margin:0">Jubilee Textile Processors</h2></div>',
-            unsafe_allow_html=True
-        )
-
+    box = st.container(border=True, gap="small")
+    with box:
+        col_logo, col_title = st.columns([0.08, 0.92], gap="large")
+        with col_logo:
+            if LOGO_PATH.exists():
+                st.image(str(LOGO_PATH), width=60)
+        with col_title:
+            st.markdown('<div class="header-box"><h2 style="margin:0">Jubilee Textile Processors</h2></div>', unsafe_allow_html=True)
 
 def toolbar():
-    st.markdown('<div class="toolbar">', unsafe_allow_html=True)
+    box = st.container(border=True, gap="small")
+    with box:
+        c0, c1, c2, c3, c4, c5, c6, c7, c8 = st.columns([0.22,0.12,0.10,0.12,0.14,0.16,0.16,0.12,0.12], gap="small")
+        with c0: search = st.text_input("Search", key="search", placeholder="Search…", label_visibility="collapsed")
+        with c1: type_filter = st.selectbox("Type", ["All","WITH LACE","WITHOUT LACE"], index=0, label_visibility="collapsed")
+        with c2: add_click = st.button("Add Product", use_container_width=True)
+        with c3: edit_click = st.button("Edit Product", use_container_width=True)
+        with c4: del_click = st.button("Delete Product(s)", use_container_width=True)
+        with c5: exp_match = st.button("Export MATCHING (CSV)", use_container_width=True)
+        with c6: exp_all_csv = st.button("Export All (CSV)", use_container_width=True)
+        with c7: exp_all_xlsx = st.button("Export All (Excel)", use_container_width=True)
+        with c8: imp_csv = st.button("Import CSV", use_container_width=True)
+    return dict(search=search, type_filter=type_filter, add=add_click, edit=edit_click, delete=del_click,
+                exp_match=exp_match, exp_all_csv=exp_all_csv, exp_all_xlsx=exp_all_xlsx, imp_csv=imp_csv)
 
-    c0, c1, c2, c3, c4, c5, c6, c7, c8 = st.columns([0.25, 0.15, 0.12, 0.12, 0.15, 0.16, 0.22, 0.12, 0.12])
-
-    with c0:
-        search = st.text_input("Search", key="search", label_visibility="collapsed", placeholder="Search...")
-
-    with c1:
-        type_filter = st.selectbox("Type", ["All", "WITH LACE", "WITHOUT LACE"], index=0, label_visibility="collapsed")
-
-    with c2:
-        add_click = st.button("Add Product")
-
-    with c3:
-        edit_click = st.button("Edit Product")
-
-    with c4:
-        del_click = st.button("Delete Product(s)")
-
-    with c5:
-        exp_match = st.button("Export MATCHING (CSV)")
-
-    with c6:
-        exp_all_csv = st.button("Export All (CSV)")
-
-    with c7:
-        exp_all_xlsx = st.button("Export All (Excel)")
-
-    with c8:
-        imp_csv = st.button("Import CSV")
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    return dict(
-        search=search, type_filter=type_filter,
-        add=add_click, edit=edit_click, delete=del_click,
-        exp_match=exp_match, exp_all_csv=exp_all_csv,
-        exp_all_xlsx=exp_all_xlsx, imp_csv=imp_csv
-    )
 
 
 def load_table_dataframe():
@@ -395,6 +357,23 @@ selected_ids = selectable_table(df_view)
 
 st.divider()
 
+# Wrap table + preview in a container for internal spacing
+content = st.container(gap="medium")
+with content:
+    left, right = st.columns([0.68, 0.32], gap="large")
+    with left:
+        st.caption("Select rows by ID. Table is read-only; use Add/Edit for changes.", help="Use filters above to narrow results.")
+        st.dataframe(df_view, use_container_width=True, height=420)  # shorter table avoids crowding below
+        selected_ids_csv = st.text_input("Selected IDs (comma-separated)", value="", placeholder="e.g. 1,3,8")
+    with right:
+        st.markdown('<div class="img-preview">', unsafe_allow_html=True)
+        st.subheader("Image Preview")
+        preview_id = st.number_input("Preview by ID", min_value=0, step=1, value=0)
+        # ... image preview code ...
+        st.markdown('</div>', unsafe_allow_html=True)
+
+st.divider()
+
 # --- ACTION HANDLERS ---
 # Add
 if actions["add"]:
@@ -550,5 +529,6 @@ if actions["imp_csv"]:
                 st.success(f"Imported {imported} records. Refresh to view.")
         except Exception as e:
             st.error(f"Import failed: {e}")
+
 
 
