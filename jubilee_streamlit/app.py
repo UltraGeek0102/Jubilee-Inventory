@@ -1,526 +1,399 @@
-
+# app.py
 import os
 import io
-import csv
 import sqlite3
-from pathlib import Path
 from datetime import datetime
+from dataclasses import dataclass
+from typing import List, Tuple, Optional
 
 import pandas as pd
-from PIL import Image
 import streamlit as st
+from PIL import Image
 
-# ---------------- CONFIG / THEME ----------------
-st.set_page_config(page_title="Jubilee Inventory", layout="wide", page_icon="🧵")
+# ----------------------------
+# Config & constants
+# ----------------------------
+DB_PATH = "inventory.db"
+UPLOAD_DIR = "uploads"
+COMPRESSED_DIR = "compressed"
+ASSETS_NO_IMAGE = os.path.join("assets", "no-image.png")
 
-ASSETS_DIR = Path("assets")
-LOGO_PATH = ASSETS_DIR / "logo.png"
-NO_IMAGE_PATH = ASSETS_DIR / "no-image.png"
-DB_PATH = Path("inventory.db")
-COMPRESSED_DIR = Path("compressed")
-COMPRESSED_DIR.mkdir(exist_ok=True)
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+os.makedirs(COMPRESSED_DIR, exist_ok=True)
+os.makedirs("assets", exist_ok=True)
 
-DARK_CSS = """
-<style>
-:root { --bg:#121212; --panel:#1e1e1e; --border:#2a2a2a; --text:#ffffff; }
-html, body, [data-testid="stAppViewContainer"] { background-color: var(--bg); color: var(--text); }
-.block-container { padding-top: 0.5rem; padding-bottom: 1rem; }
-.header-box {
-  background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
-  padding: 16px 20px; display:flex; align-items:center; gap:14px;
-}
-.toolbar {
-  background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
-  padding: 10px; display:flex; gap:10px; align-items:center; flex-wrap: wrap;
-}
-.toolbar .stButton>button, .stButton>button {
-  padding: 8px 14px; border: 1px solid var(--border); background:#242424; color:#fff;
-  border-radius: 8px; line-height: 1.1; font-weight: 500;
-}
-.toolbar .stButton>button:hover { background:#2a2a2a; }
-[data-testid="stHorizontalBlock"] { gap: 0.75rem !important; } /* column gaps */
-div[data-testid="stDataFrame"] { border: 1px solid var(--border); border-radius: 8px; }
-.img-preview { border: 1px solid var(--border); border-radius: 8px; padding: 12px; background: var(--panel); }
-.tag-muted { color:#a0a0a0; font-size: 0.9rem; }
-</style>
-"""
-st.markdown(DARK_CSS, unsafe_allow_html=True)  # [22]
+# ----------------------------
+# Database layer (reused logic)
+# ----------------------------
+class DatabaseManager:
+    def __init__(self, db_path: str = DB_PATH):
+        self.db_path = db_path
+        self.init_db()
 
-# ---------------- DB ----------------
-def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.execute("""
-    CREATE TABLE IF NOT EXISTS products(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        company TEXT,
-        dno TEXT,
-        matching TEXT,
-        diamond TEXT,
-        pcs INTEGER,
-        delivery_pcs INTEGER DEFAULT 0,
-        assignee TEXT,
-        type TEXT,
-        rate REAL,
-        total REAL,
-        image TEXT
-    )
-    """)
-    conn.commit()
-    conn.close()
+    def _connect(self):
+        return sqlite3.connect(self.db_path)
 
-def fetch_all():
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM products")
-    rows = cur.fetchall()
-    conn.close()
-    return rows
+    def init_db(self):
+        conn = self._connect()
+        conn.execute("""
+        CREATE TABLE IF NOT EXISTS products (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            company TEXT,
+            dno TEXT,
+            matching TEXT,
+            diamond TEXT,
+            pcs INTEGER,
+            delivery_pcs INTEGER DEFAULT 0,
+            assignee TEXT,
+            type TEXT,
+            rate REAL,
+            total REAL,
+            image TEXT
+        )""")
+        conn.commit()
+        conn.close()
 
-def dno_exists(dno: str, exclude_id=None) -> bool:
-    conn = sqlite3.connect(DB_PATH)
-    if exclude_id:
-        cur = conn.execute("SELECT COUNT(*) FROM products WHERE dno=? AND id != ?", (dno, exclude_id))
-    else:
-        cur = conn.execute("SELECT COUNT(*) FROM products WHERE dno=?", (dno,))
-    exists = cur.fetchone() > 0
-    conn.close()
-    return exists  # [23]
+    def get_all_products(self):
+        conn = self._connect()
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM products")
+        rows = cur.fetchall()
+        conn.close()
+        return rows
 
-def add_product(data_tuple):
-    conn = sqlite3.connect(DB_PATH)
-    conn.execute("""
+    def dno_exists(self, dno: str, exclude_id: Optional[int] = None) -> bool:
+        conn = self._connect()
+        if exclude_id is not None:
+            cur = conn.execute("SELECT COUNT(*) FROM products WHERE dno = ? AND id != ?", (dno, exclude_id))
+        else:
+            cur = conn.execute("SELECT COUNT(*) FROM products WHERE dno = ?", (dno,))
+        result = cur.fetchone()
+        conn.close()
+        return result > 0
+
+    def add_product(self, data: Tuple):
+        conn = self._connect()
+        conn.execute("""
         INSERT INTO products (company, dno, matching, diamond, pcs, delivery_pcs, assignee, type, rate, total, image)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, data_tuple)
-    conn.commit()
-    conn.close()
+        """, data)
+        conn.commit()
+        conn.close()
 
-def update_product(product_id, data_tuple):
-    conn = sqlite3.connect(DB_PATH)
-    conn.execute("""
+    def update_product(self, product_id: int, data: Tuple):
+        conn = self._connect()
+        conn.execute("""
         UPDATE products SET company=?, dno=?, matching=?, diamond=?, pcs=?, delivery_pcs=?, assignee=?, type=?, rate=?, total=?, image=?
         WHERE id=?
-    """, data_tuple + (product_id,))
-    conn.commit()
-    conn.close()
+        """, data + (product_id,))
+        conn.commit()
+        conn.close()
 
-def delete_products(ids):
-    if not ids:
-        return
-    conn = sqlite3.connect(DB_PATH)
-    conn.executemany("DELETE FROM products WHERE id = ?", [(i,) for i in ids])
-    conn.commit()
-    conn.close()
+    def delete_products(self, product_ids: List[int]):
+        if not product_ids:
+            return
+        conn = self._connect()
+        conn.executemany("DELETE FROM products WHERE id = ?", [(pid,) for pid in product_ids])
+        conn.commit()
+        conn.close()
 
-# ---------------- MATCHING ----------------
-def parse_matching_string(matching: str):
-    pairs, total = [], 0
+# ----------------------------
+# Utilities
+# ----------------------------
+def compress_image_bytes(file_bytes: bytes, filename: str, max_size=(800, 800), quality=85) -> str:
+    """Compress an uploaded image and save to COMPRESSED_DIR; returns path."""
+    im = Image.open(io.BytesIO(file_bytes))
+    im.thumbnail(max_size)
+    out_path = os.path.join(COMPRESSED_DIR, filename)
+    # Ensure extension preserved; default to JPEG if missing alpha
+    save_kwargs = dict(optimize=True, quality=quality)
+    ext = os.path.splitext(filename)[1].lower()
+    if ext in [".jpg", ".jpeg"]:
+        fmt = "JPEG"
+    elif ext in [".png"]:
+        fmt = "PNG"
+        # PNG ignores 'quality', but optimize works
+        save_kwargs.pop("quality", None)
+    else:
+        # Fallback to PNG
+        fmt = "PNG"
+        save_kwargs.pop("quality", None)
+        if not out_path.lower().endswith(".png"):
+            out_path += ".png"
+    im.save(out_path, format=fmt, **save_kwargs)
+    return out_path
+
+def parse_matching_string(matching: str) -> List[Tuple[str, int]]:
+    out = []
     if matching:
-        for part in matching.split(","):
-            if ":" in part:
-                color, pcs = part.split(":", 1)
+        for pair in matching.split(","):
+            if ":" in pair:
+                color, pcs = pair.split(":")
                 color = color.strip()
                 pcs = pcs.strip()
                 if pcs.isdigit():
-                    v = int(pcs)
-                    pairs.append((color, v))
-                    total += v
-    return pairs, total
+                    out.append((color, int(pcs)))
+    return out
 
-def build_matching_string(pairs):
-    parts, total = [], 0
-    for color, pcs in pairs:
-        color = (color or "").strip()
-        pcs_str = str(pcs).strip()
-        if color and pcs_str.isdigit():
-            v = int(pcs_str)
-            parts.append(f"{color}:{v}")
-            total += v
+def build_matching_string(rows_df: pd.DataFrame) -> Tuple[str, int]:
+    """Build 'Color:PCS, ...' and return total pcs."""
+    rows_df = rows_df.dropna(subset=["Color"]).copy()
+    rows_df["PCS"] = pd.to_numeric(rows_df["PCS"], errors="coerce").fillna(0).astype(int)
+    parts = [f"{r.Color.strip()}:{int(r.PCS)}" for r in rows_df.itertuples(index=False) if str(r.Color).strip()]
+    total = int(rows_df["PCS"].sum())
     return ", ".join(parts), total
 
-# ---------------- IMAGES ----------------
-def compress_image(path: str, max_size=(800, 800)) -> str:
-    try:
-        img = Image.open(path)
-        img.thumbnail(max_size)
-        out_path = COMPRESSED_DIR / Path(path).name
-        img.save(out_path, optimize=True, quality=85)
-        return str(out_path)
-    except Exception:
-        return path
+def to_excel_bytes(df: pd.DataFrame, sheet_name: str = "Products") -> bytes:
+    buff = io.BytesIO()
+    with pd.ExcelWriter(buff, engine="xlsxwriter") as writer:
+        df.to_excel(writer, index=False, sheet_name=sheet_name)
+    return buff.getvalue()
 
-def show_thumbnail(path: str, size=(60, 60)):
-    try:
-        if path and os.path.exists(path):
-            img = Image.open(path)
-        elif NO_IMAGE_PATH.exists():
-            img = Image.open(NO_IMAGE_PATH)
-        else:
-            return None
-        img.thumbnail(size)
-        return img
-    except Exception:
-        return None
+# ----------------------------
+# Streamlit App
+# ----------------------------
+st.set_page_config(page_title="Jubilee Inventory", layout="wide")
+st.title("Jubilee Textile Processors — Inventory")
 
-# ---------------- UI HELPERS ----------------
-def k(prefix: str, name: str) -> str:
-    return f"{prefix}__{name}"
+# Global DB (per session)
+if "db" not in st.session_state:
+    st.session_state.db = DatabaseManager()
 
-def header():
-    box = st.container(border=True, gap="small")  # [22]
-    with box:
-        col_logo, col_title = st.columns([0.08, 0.92], gap="large")  # [9]
-        with col_logo:
-            if LOGO_PATH.exists():
-                st.image(str(LOGO_PATH), width=60)
-        with col_title:
-            st.markdown(
-                '<div class="header-box"><h2 style="margin:0">Jubilee Textile Processors</h2></div>',
-                unsafe_allow_html=True
-            )
+db: DatabaseManager = st.session_state.db
 
-def toolbar():
-    box = st.container(border=True, gap="small")
-    with box:
-        c0, c1, c2, c3, c4, c5, c6, c7, c8 = st.columns(
-            [0.22,0.12,0.10,0.12,0.14,0.16,0.16,0.12,0.12], gap="small"
-        )  # [9]
-        with c0:
-            search = st.text_input("Search", key=k("toolbar", "search"),
-                                   placeholder="Search…", label_visibility="collapsed")
-        with c1:
-            type_filter = st.selectbox("Type", ["All","WITH LACE","WITHOUT LACE"],
-                                       index=0, key=k("toolbar","type"),
-                                       label_visibility="collapsed")
-        with c2: add_click = st.button("Add Product", key=k("toolbar","add"), use_container_width=True)
-        with c3: edit_click = st.button("Edit Product", key=k("toolbar","edit"), use_container_width=True)
-        with c4: del_click = st.button("Delete Product(s)", key=k("toolbar","delete"), use_container_width=True)
-        with c5: exp_match = st.button("Export MATCHING (CSV)", key=k("toolbar","exp_match"), use_container_width=True)
-        with c6: exp_all_csv = st.button("Export All (CSV)", key=k("toolbar","exp_all_csv"), use_container_width=True)
-        with c7: exp_all_xlsx = st.button("Export All (Excel)", key=k("toolbar","exp_all_xlsx"), use_container_width=True)
-        with c8: imp_csv = st.button("Import CSV", key=k("toolbar","imp_csv"), use_container_width=True)
-    return dict(search=search, type_filter=type_filter, add=add_click, edit=edit_click,
-                delete=del_click, exp_match=exp_match, exp_all_csv=exp_all_csv,
-                exp_all_xlsx=exp_all_xlsx, imp_csv=imp_csv)
-
-def load_table_dataframe():
-    rows = fetch_all()
-    cols = ["ID","COMPANY NAME","D.NO.","MATCHING","Diamond","PCS","DELIVERY PCS","Pending",
-            "Assignee","Type","Rate","Total","Image"]
-    data = []
-    for r in rows:
+# Sidebar: actions
+with st.sidebar:
+    st.header("Actions")
+    # Import CSV
+    import_file = st.file_uploader("Import CSV", type=["csv"])  # replaces QFileDialog [24]
+    if import_file is not None:
         try:
-            pending = int(r[24] or 0) - int(r[25] or 0)
-        except Exception:
-            pending = 0
-        data.append([
-            r, r[26], r[27], r[28], r[29],
-            r[24], r[25], pending, r[30], r[31], r[32], r[33], r[34]
-        ])
-    return pd.DataFrame(data, columns=cols)  # [23]
-
-def filter_df(df: pd.DataFrame, search: str, type_filter: str):
-    if df.empty:
-        return df
-    sub = df.copy()
-    if type_filter and type_filter.lower() != "all":
-        sub = sub[sub["Type"].astype(str).str.lower() == type_filter.lower()]
-    if search:
-        s = str(search).lower()
-        mask = pd.Series(False, index=sub.index)
-        for col in sub.columns:
-            mask = mask | sub[col].astype(str).str.lower().str.contains(s, na=False)
-        sub = sub[mask]
-    return sub
-
-def matching_editor(existing: str | None = "", scope="match"):
-    st.write("Enter color/pcs pairs. Add multiple rows. Total PCS is calculated.")
-    pairs, _ = parse_matching_string(existing or "")
-    num_rows = st.number_input("Matching rows", min_value=0, step=1,
-                               value=max(1, len(pairs) or 1), key=k(scope, "rows"))
-    colors, quantities = [], []
-    for i in range(num_rows):
-        col1, col2 = st.columns([0.6, 0.4], gap="small")  # [9]
-        default_color = pairs[i] if i < len(pairs) else ""
-        default_pcs = pairs[i][26] if i < len(pairs) else 0
-        with col1:
-            colors.append(st.text_input(f"Color {i+1}", value=default_color, key=k(scope, f"color_{i}")))
-        with col2:
-            quantities.append(st.number_input(f"PCS {i+1}", min_value=0, step=1,
-                                              value=int(default_pcs), key=k(scope, f"pcs_{i}")))
-    pairs_now = [(c, q) for c, q in zip(colors, quantities) if str(c).strip() != ""]
-    mstring, mtotal = build_matching_string(pairs_now)
-    st.caption(f"Total PCS: {mtotal}")
-    return mstring, mtotal
-
-def add_or_edit_dialog(mode="add", row=None, key_prefix="form"):
-    st.subheader(f"{'Add' if mode=='add' else 'Edit'} Product", anchor=k(key_prefix, "title"))
-
-    company = st.text_input("Company Name",
-                            value=(row["COMPANY NAME"] if row is not None else ""),
-                            key=k(key_prefix, "company"))
-    dno = st.text_input("D.NO.",
-                        value=(row["D.NO."] if row is not None else ""),
-                        key=k(key_prefix, "dno"))
-    diamond = st.text_input("Diamond",
-                            value=(row["Diamond"] if row is not None else ""),
-                            key=k(key_prefix, "diamond"))
-
-    mstring_init = row["MATCHING"] if row is not None else ""
-    mstring, pcs_total = matching_editor(mstring_init, scope=k(key_prefix, "matching"))
-
-    delivery_pcs = st.number_input("Delivery PCS", min_value=0, step=1,
-                                   value=int(row["DELIVERY PCS"]) if row is not None else 0,
-                                   key=k(key_prefix, "delivery"))
-    assignee = st.text_input("Assignee",
-                             value=(row["Assignee"] if row is not None else ""),
-                             key=k(key_prefix, "assignee"))
-    type_val = st.selectbox("Type", ["WITH LACE", "WITHOUT LACE"],
-                            index=0 if (row is None or str(row["Type"]).upper() == "WITH LACE") else 1,
-                            key=k(key_prefix, "type"))
-    rate = st.number_input("Rate", min_value=0.0, step=1.0,
-                           value=float(row["Rate"]) if row is not None else 0.0,
-                           key=k(key_prefix, "rate"))
-
-    img_col1, img_col2 = st.columns([0.6, 0.4], gap="small")
-    with img_col1:
-        uploaded = st.file_uploader("Choose image (optional)",
-                                    type=["png", "jpg", "jpeg", "bmp"],
-                                    key=k(key_prefix, "uploader"))
-        chosen_path = ""
-        if uploaded is not None:
-            temp_path = Path(f"temp_{uploaded.name}")
-            temp_path.write_bytes(uploaded.read())
-            chosen_path = compress_image(str(temp_path))
-            try:
-                temp_path.unlink(missing_ok=True)
-            except Exception:
-                pass
-            st.success(f"Compressed to: {chosen_path}")
-        manual_path = st.text_input("Or path on disk",
-                                    value=(row["Image"] if row is not None else ""),
-                                    key=k(key_prefix, "manual_path"))
-        image_path = chosen_path if chosen_path else manual_path
-    with img_col2:
-        thumb = show_thumbnail(image_path, size=(300, 300))
-        if thumb:
-            st.image(thumb, caption="Image", use_container_width=True)
-        else:
-            st.caption("No image preview")
-
-    total = pcs_total * (rate or 0.0)
-    payload = dict(
-        company=company.strip(),
-        dno=dno.strip(),
-        matching=mstring,
-        diamond=diamond.strip(),
-        pcs=int(pcs_total),
-        delivery_pcs=int(delivery_pcs or 0),
-        assignee=assignee.strip(),
-        type=type_val,
-        rate=float(rate or 0.0),
-        total=float(total),
-        image=image_path.strip()
-    )
-    return payload
-
-# ---------------- APP ----------------
-init_db()
-
-header()
-actions = toolbar()
-
-df_full = load_table_dataframe()
-df_view = filter_df(df_full, actions["search"], actions["type_filter"])
-
-st.divider()
-
-content = st.container(gap="medium")
-with content:
-    left, right = st.columns([0.68, 0.32], gap="large")  # [9]
-    with left:
-        st.caption("Select rows by ID. The table is read-only; use Add/Edit for changes.")
-        st.dataframe(df_view, use_container_width=True, height=420, key=k("main","table"))
-        selected_ids_csv = st.text_input(
-            "Selected IDs (comma-separated)",
-            value="",
-            placeholder="e.g. 1,3,8",
-            key=k("main","selected_ids")
-        )
-        try:
-            selected_ids = [int(x) for x in selected_ids_csv.split(",") if x.strip().isdigit()]
-        except Exception:
-            selected_ids = []
-    with right:
-        st.markdown('<div class="img-preview">', unsafe_allow_html=True)
-        st.subheader("Image Preview")
-        preview_id = st.number_input("Preview by ID", min_value=0, step=1, value=0, key=k("right","preview_id"))
-        if preview_id:
-            row = df_view[df_view["ID"] == preview_id]
-            if not row.empty:
-                img_path = str(row.iloc["Image"] or "")  # [10]
-                img = show_thumbnail(img_path, size=(500, 500))
-                if img:
-                    st.image(img, caption=img_path, use_container_width=True)
-                else:
-                    st.info("No image available.")
+            df_imp = pd.read_csv(import_file)
+            expected = ["ID", "COMPANY NAME", "D.NO.", "MATCHING", "Diamond", "PCS", "DELIVERY PCS", "Assignee", "Type", "Rate", "Total", "Image"]
+            if list(df_imp.columns) != expected:
+                st.error(f"Invalid CSV headers. Expected: {expected}")
             else:
-                st.info("ID not found in current view.")
-        else:
-            st.write("Select an ID to preview image.")
-        st.markdown('</div>', unsafe_allow_html=True)
-
-st.divider()
-
-# Add
-if actions["add"]:
-    with st.expander("Add Product", expanded=True):
-        payload = add_or_edit_dialog(mode="add", row=None, key_prefix="add_dialog_1")
-        col_left, col_right = st.columns([0.15, 0.85], gap="small")  # [9]
-        with col_left:
-            if st.button("Save New", key=k("add_dialog_1","save")):
-                if not payload["dno"]:
-                    st.error("D.NO. is required.")
-                elif dno_exists(payload["dno"]):
-                    st.error(f"A product with D.NO. '{payload['dno']}' already exists.")
-                else:
-                    add_product(tuple(payload.values()))
-                    st.success("Product added. Refresh the page to see it in the table.")
-
-# Edit
-if actions["edit"]:
-    if not selected_ids:
-        st.warning("Select one ID to edit.")
-    elif len(selected_ids) > 1:
-        st.warning("Please select only one ID to edit.")
-    else:
-        pid = selected_ids
-        row = df_full[df_full["ID"] == pid]
-        if row.empty:
-            st.error("Selected ID not found.")
-        else:
-            with st.expander(f"Edit Product #{pid}", expanded=True):
-                rowdict = row.iloc.to_dict()
-                payload = add_or_edit_dialog(mode="edit", row=rowdict, key_prefix=f"edit_dialog_{pid}")
-                col_left, col_right = st.columns([0.15, 0.85], gap="small")  # [9]
-                with col_left:
-                    if st.button("Save Changes", key=k(f"edit_dialog_{pid}","save")):
-                        if not payload["dno"]:
-                            st.error("D.NO. is required.")
-                        elif dno_exists(payload["dno"], exclude_id=pid):
-                            st.error(f"A product with D.NO. '{payload['dno']}' already exists.")
-                        else:
-                            update_product(pid, tuple(payload.values()))
-                            st.success("Product updated. Refresh the page to see it in the table.")
-
-# Delete
-if actions["delete"]:
-    if not selected_ids:
-        st.warning("Select one or more IDs to delete.")
-    else:
-        if st.button("Confirm Delete", key=k("delete","confirm")):
-            delete_products(selected_ids)
-            st.success("Deleted. Refresh the page to update the table.")
-
-# Export MATCHING CSV
-if actions["exp_match"]:
-    sub = df_full[df_full["ID"].isin(selected_ids)] if selected_ids else df_full
-    out = io.StringIO()
-    writer = csv.writer(out)
-    writer.writerow(["D.NO.", "Color", "PCS"])
-    for _, r in sub.iterrows():
-        dno = str(r["D.NO."] or "")
-        pairs, total_pcs = parse_matching_string(str(r["MATCHING"] or ""))
-        for color, pcs in pairs:
-            writer.writerow([dno, color, pcs])
-        if pairs:
-            writer.writerow(["", "", ""])
-            writer.writerow(["", "", f"Total PCS: {total_pcs}"])
-            writer.writerow(["", "", ""])
-    st.download_button(
-        "Download MATCHING CSV",
-        data=out.getvalue().encode("utf-8"),
-        file_name=f"matching_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-        mime="text/csv",
-        key=k("dl","match_csv")
-    )
-
-# Export All CSV
-if actions["exp_all_csv"]:
-    out = io.StringIO()
-    writer = csv.writer(out)
-    writer.writerow(["ID","COMPANY NAME","D.NO.","MATCHING","Diamond","PCS","DELIVERY PCS","Assignee","Type","Rate","Total","Image"])
-    conn = sqlite3.connect(DB_PATH)
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM products")
-    for row in cur.fetchall():
-        writer.writerow(row)
-    conn.close()
-    st.download_button(
-        "Download All (CSV)",
-        data=out.getvalue().encode("utf-8"),
-        file_name=f"products_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-        mime="text/csv",
-        key=k("dl","all_csv")
-    )
-
-# Export All Excel
-if actions["exp_all_xlsx"]:
-    from openpyxl import Workbook
-    wb = Workbook()
-    sh = wb.active
-    headers = ["ID","COMPANY NAME","D.NO.","MATCHING","Diamond","PCS","DELIVERY PCS","Pending","Assignee","Type","Rate","Total","Image"]
-    sh.append(headers)
-    for _, r in df_full.iterrows():
-        sh.append([
-            r["ID"], r["COMPANY NAME"], r["D.NO."], r["MATCHING"], r["Diamond"], r["PCS"],
-            r["DELIVERY PCS"], r["Pending"], r["Assignee"], r["Type"], r["Rate"], r["Total"], r["Image"]
-        ])
-    outb = io.BytesIO()
-    wb.save(outb)
-    st.download_button(
-        "Download All (Excel)",
-        data=outb.getvalue(),
-        file_name=f"products_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        key=k("dl","all_xlsx")
-    )
-
-# Import CSV
-if actions["imp_csv"]:
-    up = st.file_uploader("Upload products CSV", type=["csv"], accept_multiple_files=False, key=k("import","uploader"))
-    if up is not None:
-        try:
-            text = up.read().decode("utf-8")
-            reader = csv.reader(io.StringIO(text))
-            headers = next(reader, None)
-            expected = ["ID","COMPANY NAME","D.NO.","MATCHING","Diamond","PCS","DELIVERY PCS","Assignee","Type","Rate","Total","Image"]
-            if headers != expected:
-                st.error(f"CSV headers do not match expected format:\n{expected}")
-            else:
-                conn = sqlite3.connect(DB_PATH)
-                cur = conn.cursor()
                 imported = 0
-                for row in reader:
-                    try:
-                        if len(row) != 12:
-                            continue
-                        pid = int(row) if row.strip().isdigit() else None
-                        pcs = int(row[24]) if row[24].strip().isdigit() else 0
-                        delv = int(row[25]) if row[25].strip().isdigit() else 0
-                        rate = float(row[32]) if row[32].strip() else 0.0
-                        total = float(row[33]) if row[33].strip() else 0.0
-                        values = (pid, row[26], row[27], row[28], row[29], pcs, delv, row[30], row[31], rate, total, row[34])
-                        cur.execute("""
-                            INSERT OR REPLACE INTO products(
-                                id, company, dno, matching, diamond, pcs, delivery_pcs, assignee, type, rate, total, image
-                            ) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        """, values)
-                        imported += 1
-                    except Exception:
-                        continue
-                conn.commit()
-                conn.close()
-                st.success(f"Imported {imported} records. Refresh to view.")
+                for _, r in df_imp.iterrows():
+                    # Normalize types
+                    pid = int(r["ID"]) if pd.notna(r["ID"]) and str(r["ID"]).isdigit() else None
+                    pcs = int(r["PCS"]) if pd.notna(r["PCS"]) and str(r["PCS"]).isdigit() else 0
+                    dpcs = int(r["DELIVERY PCS"]) if pd.notna(r["DELIVERY PCS"]) and str(r["DELIVERY PCS"]).isdigit() else 0
+                    rate = float(r["Rate"]) if pd.notna(r["Rate"]) and str(r["Rate"]) != "" else 0.0
+                    total = float(r["Total"]) if pd.notna(r["Total"]) and str(r["Total"]) != "" else 0.0
+                    values = (
+                        r["COMPANY NAME"] if pd.notna(r["COMPANY NAME"]) else "",
+                        r["D.NO."] if pd.notna(r["D.NO."]) else "",
+                        r["MATCHING"] if pd.notna(r["MATCHING"]) else "",
+                        r["Diamond"] if pd.notna(r["Diamond"]) else "",
+                        pcs,
+                        dpcs,
+                        r["Assignee"] if pd.notna(r["Assignee"]) else "",
+                        r["Type"] if pd.notna(r["Type"]) else "",
+                        rate,
+                        total,
+                        r["Image"] if pd.notna(r["Image"]) else "",
+                    )
+                    if pid is not None:
+                        # Upsert by ID
+                        db.update_product(pid, values)
+                    else:
+                        db.add_product(values)
+                    imported += 1
+                st.success(f"Imported {imported} records")
         except Exception as e:
             st.error(f"Import failed: {e}")
+    st.divider()
+
+# Load data for display
+rows = db.get_all_products()
+cols = ["ID", "COMPANY NAME", "D.NO.", "MATCHING", "Diamond", "PCS", "DELIVERY PCS", "Assignee", "Type", "Rate", "Total", "Image"]
+df = pd.DataFrame(rows, columns=cols)
+if not df.empty:
+    df["Pending"] = df["PCS"].fillna(0).astype(int) - df["DELIVERY PCS"].fillna(0).astype(int)
+    # Reorder to include Pending like the desktop table
+    df = df[["ID","COMPANY NAME","D.NO.","MATCHING","Diamond","PCS","DELIVERY PCS","Pending","Assignee","Type","Rate","Total","Image"]]
+
+# Top controls: search + type filter + export buttons
+c1, c2, c3, c4, c5 = st.columns([3,2,2,2,2])
+with c1:
+    search = st.text_input("Search", "")
+with c2:
+    type_filter = st.selectbox("Type", ["All", "WITH LACE", "WITHOUT LACE"])
+with c3:
+    export_all_csv = st.button("Export All (CSV)")
+with c4:
+    export_all_xlsx = st.button("Export All (Excel)")
+with c5:
+    export_matching_csv = st.button("Export MATCHING (CSV)")
+
+# Filter by type and search
+df_view = df.copy()
+if type_filter != "All":
+    df_view = df_view[df_view["Type"].str.lower() == type_filter.lower()]
+if search:
+    s = search.lower()
+    df_view = df_view[df_view.apply(lambda r: any(s in str(v).lower() for v in r.values), axis=1)]
+
+# Display table with selection
+st.subheader("Inventory")
+if "selected_ids" not in st.session_state:
+    st.session_state.selected_ids = []
+
+# Use a selection widget because st.data_editor doesn’t support direct row select retrieval
+ids_all = df_view["ID"].tolist() if not df_view.empty else []
+selected_ids = st.multiselect("Select rows by ID for delete/export", ids_all, default=st.session_state.selected_ids)
+st.session_state.selected_ids = selected_ids
+
+# Show dataframe for read-only display
+st.dataframe(df_view, use_container_width=True)  # read-only view [2]
+
+# Image preview for a selected item
+with st.expander("Image preview"):
+    preview_id = st.selectbox("Choose ID to preview", ids_all) if ids_all else None
+    if preview_id is not None:
+        row = df[df["ID"] == preview_id].iloc
+        img_path = row["Image"]
+        if isinstance(img_path, str) and os.path.exists(img_path):
+            st.image(img_path, width=400)  # st.image replacement for QPixmap preview [25]
+        else:
+            if os.path.exists(ASSETS_NO_IMAGE):
+                st.image(ASSETS_NO_IMAGE, width=200)  # placeholder [25]
+
+# Export handlers
+if export_all_csv and not df.empty:
+    csv_bytes = df.to_csv(index=False).encode("utf-8")
+    st.download_button("Download products_export.csv", data=csv_bytes, file_name=f"products_export_{datetime.now():%Y%m%d_%H%M%S}.csv", mime="text/csv")  # [7][10][13]
+if export_all_xlsx and not df.empty:
+    xlsx_bytes = to_excel_bytes(df, sheet_name="Products")
+    st.download_button("Download products_export.xlsx", data=xlsx_bytes, file_name=f"products_export_{datetime.now():%Y%m%d_%H%M%S}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")  # [7][13]
+if export_matching_csv:
+    # Build a long CSV with D.NO., Color, PCS and totals between groups
+    buffer = io.StringIO()
+    writer = pd.ExcelWriter  # just to keep importers happy in requirements; not used here
+    buffer.write("D.NO.,Color,PCS\n")
+    for _, r in df.iterrows():
+        dno = r["D.NO."]
+        parts = parse_matching_string(str(r["MATCHING"]) if pd.notna(r["MATCHING"]) else "")
+        total = sum(p for _, p in parts)
+        for color, pcs in parts:
+            buffer.write(f"{dno},{color},{pcs}\n")
+        if parts:
+            buffer.write(",,\n")
+            buffer.write(f",,Total PCS: {total}\n")
+            buffer.write(",,\n")
+    st.download_button("Download matching_export.csv", data=buffer.getvalue().encode("utf-8"), file_name=f"matching_export_{datetime.now():%Y%m%d_%H%M%S}.csv", mime="text/csv")  # [7][10]
+
+st.divider()
+
+# Add / Edit form
+st.subheader("Add or Edit Product")
+with st.form("product_form", clear_on_submit=False):
+    mode = st.selectbox("Mode", ["Add", "Edit"])
+    edit_id = None
+    if mode == "Edit":
+        edit_id = st.selectbox("Select ID to edit", df["ID"].tolist() if not df.empty else [])
+    company = st.text_input("Company Name")
+    dno = st.text_input("D.NO.")
+    diamond = st.text_input("Diamond")
+    assignee = st.text_input("Assignee")
+    type_val = st.selectbox("Type", ["WITH LACE", "WITHOUT LACE"])
+    rate = st.number_input("Rate", min_value=0.0, step=0.5, format="%.2f")
+
+    # Matching editor table (Color, PCS) using data_editor [2]
+    if "match_df" not in st.session_state:
+        st.session_state.match_df = pd.DataFrame(columns=["Color","PCS"])
+    st.write("MATCHING (Color + PCS)")
+    match_df = st.data_editor(
+        st.session_state.match_df,
+        num_rows="dynamic",
+        column_config={
+            "Color": st.column_config.TextColumn(),
+            "PCS": st.column_config.NumberColumn(min_value=0, step=1)
+        },
+        use_container_width=True,
+        key="matching_editor"
+    )  # [2]
+
+    delivery_pcs = st.number_input("Delivery PCS", min_value=0, step=1)
+
+    # Image upload & compression [24][25]
+    img_file = st.file_uploader("Choose Image", type=["png","jpg","jpeg","bmp"])  # [24]
+    current_image_path = st.text_input("Current Image Path (leave or override by upload)", "")
+
+    submitted = st.form_submit_button("Save")
+
+    if submitted:
+        # Build matching string and pcs_total
+        matching_str, pcs_total = build_matching_string(match_df)
+        total = pcs_total * float(rate or 0)
+        # Handle image upload if present
+        image_path_to_store = current_image_path.strip()
+        if img_file is not None:
+            filename = os.path.basename(img_file.name)
+            bytes_data = img_file.getvalue()
+            image_path_to_store = compress_image_bytes(bytes_data, filename)
+        # D.NO. uniqueness check
+        exclude = int(edit_id) if mode == "Edit" and edit_id is not None else None
+        if db.dno_exists(dno.strip(), exclude):
+            st.error(f"Duplicate D.NO. '{dno}'. Not saved.")
+        else:
+            data_tuple = (
+                company.strip(),
+                dno.strip(),
+                matching_str,
+                diamond.strip(),
+                int(pcs_total),
+                int(delivery_pcs or 0),
+                assignee.strip(),
+                type_val,
+                float(rate or 0),
+                float(total),
+                image_path_to_store
+            )
+            if mode == "Edit" and edit_id is not None:
+                db.update_product(int(edit_id), data_tuple)
+                st.success(f"Updated ID {edit_id}")
+            else:
+                db.add_product(data_tuple)
+                st.success("Added product")
+        # Reset editor buffer to reflect new form state on next render
+        st.session_state.match_df = pd.DataFrame(columns=["Color","PCS"])
+
+# Pre-fill on selecting Edit
+if st.session_state.get("product_form-mode", None) == "Edit" and st.session_state.get("product_form-Select ID to edit") and not df.empty:
+    try:
+        edit_id_prefill = st.session_state["product_form-Select ID to edit"]
+        r = df[df["ID"] == edit_id_prefill].iloc
+        # Write defaults into widget state keys for next rerun using session_state [14][17][20]
+        st.session_state["product_form-Company Name"] = r["COMPANY NAME"]
+        st.session_state["product_form-D.NO."] = r["D.NO."]
+        st.session_state["product_form-Diamond"] = r["Diamond"]
+        st.session_state["product_form-Assignee"] = r["Assignee"]
+        st.session_state["product_form-Type"] = r["Type"]
+        st.session_state["product_form-Rate"] = float(r["Rate"] or 0)
+        # Matching back to editor
+        pairs = parse_matching_string(str(r["MATCHING"]) if pd.notna(r["MATCHING"]) else "")
+        st.session_state.match_df = pd.DataFrame(pairs, columns=["Color","PCS"])
+        st.session_state["product_form-Delivery PCS"] = int(r["DELIVERY PCS"] or 0)
+        st.session_state["product_form-Current Image Path (leave or override by upload)"] = r["Image"] if pd.notna(r["Image"]) else ""
+    except Exception:
+        pass
+
+st.divider()
+
+# Delete selected
+col_del1, col_del2 = st.columns([1, 9])
+with col_del1:
+    if st.button("Delete selected"):
+        try:
+            db.delete_products([int(x) for x in st.session_state.selected_ids])
+            st.success(f"Deleted {len(st.session_state.selected_ids)} product(s)")
+            st.session_state.selected_ids = []
+        except Exception as e:
+            st.error(f"Delete failed: {e}")
+with col_del2:
+    st.info("Use the multiselect above the table to choose IDs to delete.")
+
+# Footer note: persistence on Community Cloud
+st.caption("Note: On Streamlit Community Cloud, local file changes may reset on app restart; consider external storage for images if long-term persistence is required.")  # [23]
