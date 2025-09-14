@@ -1,4 +1,3 @@
-# Jubilee Inventory (Streamlit version replicating PySide6 UI/behavior)
 
 import os
 import io
@@ -11,7 +10,7 @@ import pandas as pd
 from PIL import Image
 import streamlit as st
 
-# ------------- CONFIG / THEME -------------
+# ---------------- CONFIG / THEME ----------------
 st.set_page_config(page_title="Jubilee Inventory", layout="wide", page_icon="🧵")
 
 ASSETS_DIR = Path("assets")
@@ -26,7 +25,6 @@ DARK_CSS = """
 :root { --bg:#121212; --panel:#1e1e1e; --border:#2a2a2a; --text:#ffffff; }
 html, body, [data-testid="stAppViewContainer"] { background-color: var(--bg); color: var(--text); }
 .block-container { padding-top: 0.5rem; padding-bottom: 1rem; }
-
 .header-box {
   background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
   padding: 16px 20px; display:flex; align-items:center; gap:14px;
@@ -42,14 +40,13 @@ html, body, [data-testid="stAppViewContainer"] { background-color: var(--bg); co
 .toolbar .stButton>button:hover { background:#2a2a2a; }
 [data-testid="stHorizontalBlock"] { gap: 0.75rem !important; } /* column gaps */
 div[data-testid="stDataFrame"] { border: 1px solid var(--border); border-radius: 8px; }
-
 .img-preview { border: 1px solid var(--border); border-radius: 8px; padding: 12px; background: var(--panel); }
 .tag-muted { color:#a0a0a0; font-size: 0.9rem; }
 </style>
 """
-st.markdown(DARK_CSS, unsafe_allow_html=True)  # [3]
+st.markdown(DARK_CSS, unsafe_allow_html=True)  # [22]
 
-# ------------- DB -------------
+# ---------------- DB ----------------
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     conn.execute("""
@@ -87,7 +84,7 @@ def dno_exists(dno: str, exclude_id=None) -> bool:
         cur = conn.execute("SELECT COUNT(*) FROM products WHERE dno=?", (dno,))
     exists = cur.fetchone() > 0
     conn.close()
-    return exists
+    return exists  # [23]
 
 def add_product(data_tuple):
     conn = sqlite3.connect(DB_PATH)
@@ -115,7 +112,7 @@ def delete_products(ids):
     conn.commit()
     conn.close()
 
-# ------------- MATCHING -------------
+# ---------------- MATCHING ----------------
 def parse_matching_string(matching: str):
     pairs, total = [], 0
     if matching:
@@ -141,7 +138,7 @@ def build_matching_string(pairs):
             total += v
     return ", ".join(parts), total
 
-# ------------- IMAGES -------------
+# ---------------- IMAGES ----------------
 def compress_image(path: str, max_size=(800, 800)) -> str:
     try:
         img = Image.open(path)
@@ -165,14 +162,14 @@ def show_thumbnail(path: str, size=(60, 60)):
     except Exception:
         return None
 
-# ------------- UI HELPERS -------------
-def k(scope: str, name: str) -> str:
-    return f"{scope}__{name}"
+# ---------------- UI HELPERS ----------------
+def k(prefix: str, name: str) -> str:
+    return f"{prefix}__{name}"
 
 def header():
-    box = st.container(border=True, gap="small")  # [3]
+    box = st.container(border=True, gap="small")  # [22]
     with box:
-        col_logo, col_title = st.columns([0.08, 0.92], gap="large")  # [1]
+        col_logo, col_title = st.columns([0.08, 0.92], gap="large")  # [9]
         with col_logo:
             if LOGO_PATH.exists():
                 st.image(str(LOGO_PATH), width=60)
@@ -183,11 +180,11 @@ def header():
             )
 
 def toolbar():
-    box = st.container(border=True, gap="small")  # [3]
+    box = st.container(border=True, gap="small")
     with box:
         c0, c1, c2, c3, c4, c5, c6, c7, c8 = st.columns(
             [0.22,0.12,0.10,0.12,0.14,0.16,0.16,0.12,0.12], gap="small"
-        )  # [1]
+        )  # [9]
         with c0:
             search = st.text_input("Search", key=k("toolbar", "search"),
                                    placeholder="Search…", label_visibility="collapsed")
@@ -213,13 +210,14 @@ def load_table_dataframe():
     data = []
     for r in rows:
         try:
-            pending = int(r[19] or 0) - int(r[20] or 0)
+            pending = int(r[24] or 0) - int(r[25] or 0)
         except Exception:
             pending = 0
         data.append([
-            r, r[21], r[22], r[23], r[24], r[19], r[20], pending, r[25], r[26], r[27], r[28], r[29]
+            r, r[26], r[27], r[28], r[29],
+            r[24], r[25], pending, r[30], r[31], r[32], r[33], r[34]
         ])
-    return pd.DataFrame(data, columns=cols)
+    return pd.DataFrame(data, columns=cols)  # [23]
 
 def filter_df(df: pd.DataFrame, search: str, type_filter: str):
     if df.empty:
@@ -242,9 +240,9 @@ def matching_editor(existing: str | None = "", scope="match"):
                                value=max(1, len(pairs) or 1), key=k(scope, "rows"))
     colors, quantities = [], []
     for i in range(num_rows):
-        col1, col2 = st.columns([0.6, 0.4], gap="small")  # [1]
+        col1, col2 = st.columns([0.6, 0.4], gap="small")  # [9]
         default_color = pairs[i] if i < len(pairs) else ""
-        default_pcs = pairs[i][21] if i < len(pairs) else 0
+        default_pcs = pairs[i][26] if i < len(pairs) else 0
         with col1:
             colors.append(st.text_input(f"Color {i+1}", value=default_color, key=k(scope, f"color_{i}")))
         with col2:
@@ -255,30 +253,40 @@ def matching_editor(existing: str | None = "", scope="match"):
     st.caption(f"Total PCS: {mtotal}")
     return mstring, mtotal
 
-def add_or_edit_dialog(mode="add", row=None, scope="form"):
-    st.subheader(f"{'Add' if mode=='add' else 'Edit'} Product")
-    company = st.text_input("Company Name", value=(row["COMPANY NAME"] if row is not None else ""),
-                            key=k(scope,"company"))
-    dno = st.text_input("D.NO.", value=(row["D.NO."] if row is not None else ""), key=k(scope,"dno"))
-    diamond = st.text_input("Diamond", value=(row["Diamond"] if row is not None else ""), key=k(scope,"diamond"))
+def add_or_edit_dialog(mode="add", row=None, key_prefix="form"):
+    st.subheader(f"{'Add' if mode=='add' else 'Edit'} Product", anchor=k(key_prefix, "title"))
+
+    company = st.text_input("Company Name",
+                            value=(row["COMPANY NAME"] if row is not None else ""),
+                            key=k(key_prefix, "company"))
+    dno = st.text_input("D.NO.",
+                        value=(row["D.NO."] if row is not None else ""),
+                        key=k(key_prefix, "dno"))
+    diamond = st.text_input("Diamond",
+                            value=(row["Diamond"] if row is not None else ""),
+                            key=k(key_prefix, "diamond"))
 
     mstring_init = row["MATCHING"] if row is not None else ""
-    mstring, pcs_total = matching_editor(mstring_init, scope=k(scope,"matching"))
+    mstring, pcs_total = matching_editor(mstring_init, scope=k(key_prefix, "matching"))
 
     delivery_pcs = st.number_input("Delivery PCS", min_value=0, step=1,
                                    value=int(row["DELIVERY PCS"]) if row is not None else 0,
-                                   key=k(scope,"delivery"))
-    assignee = st.text_input("Assignee", value=(row["Assignee"] if row is not None else ""), key=k(scope,"assignee"))
-    type_val = st.selectbox("Type", ["WITH LACE","WITHOUT LACE"],
-                            index=0 if (row is None or str(row["Type"]).upper()=="WITH LACE") else 1,
-                            key=k(scope,"type"))
+                                   key=k(key_prefix, "delivery"))
+    assignee = st.text_input("Assignee",
+                             value=(row["Assignee"] if row is not None else ""),
+                             key=k(key_prefix, "assignee"))
+    type_val = st.selectbox("Type", ["WITH LACE", "WITHOUT LACE"],
+                            index=0 if (row is None or str(row["Type"]).upper() == "WITH LACE") else 1,
+                            key=k(key_prefix, "type"))
     rate = st.number_input("Rate", min_value=0.0, step=1.0,
                            value=float(row["Rate"]) if row is not None else 0.0,
-                           key=k(scope,"rate"))
+                           key=k(key_prefix, "rate"))
 
     img_col1, img_col2 = st.columns([0.6, 0.4], gap="small")
     with img_col1:
-        uploaded = st.file_uploader("Choose image (optional)", type=["png","jpg","jpeg","bmp"], key=k(scope,"uploader"))
+        uploaded = st.file_uploader("Choose image (optional)",
+                                    type=["png", "jpg", "jpeg", "bmp"],
+                                    key=k(key_prefix, "uploader"))
         chosen_path = ""
         if uploaded is not None:
             temp_path = Path(f"temp_{uploaded.name}")
@@ -289,11 +297,12 @@ def add_or_edit_dialog(mode="add", row=None, scope="form"):
             except Exception:
                 pass
             st.success(f"Compressed to: {chosen_path}")
-        manual_path = st.text_input("Or path on disk", value=(row["Image"] if row is not None else ""),
-                                    key=k(scope,"manual_path"))
+        manual_path = st.text_input("Or path on disk",
+                                    value=(row["Image"] if row is not None else ""),
+                                    key=k(key_prefix, "manual_path"))
         image_path = chosen_path if chosen_path else manual_path
     with img_col2:
-        thumb = show_thumbnail(image_path, size=(300,300))
+        thumb = show_thumbnail(image_path, size=(300, 300))
         if thumb:
             st.image(thumb, caption="Image", use_container_width=True)
         else:
@@ -315,25 +324,23 @@ def add_or_edit_dialog(mode="add", row=None, scope="form"):
     )
     return payload
 
-# ------------- APP -------------
+# ---------------- APP ----------------
 init_db()
 
-header()  # header with spacing [3]
-actions = toolbar()  # toolbar controls
+header()
+actions = toolbar()
 
-# Data view
 df_full = load_table_dataframe()
 df_view = filter_df(df_full, actions["search"], actions["type_filter"])
 
 st.divider()
 
-# Table + Preview container with proper spacing
-content = st.container(gap="medium")  # [3]
+content = st.container(gap="medium")
 with content:
-    left, right = st.columns([0.68, 0.32], gap="large")  # [1]
+    left, right = st.columns([0.68, 0.32], gap="large")  # [9]
     with left:
         st.caption("Select rows by ID. The table is read-only; use Add/Edit for changes.")
-        st.dataframe(df_view, use_container_width=True, height=420, key=k("main","table"))  # [6]
+        st.dataframe(df_view, use_container_width=True, height=420, key=k("main","table"))
         selected_ids_csv = st.text_input(
             "Selected IDs (comma-separated)",
             value="",
@@ -351,7 +358,7 @@ with content:
         if preview_id:
             row = df_view[df_view["ID"] == preview_id]
             if not row.empty:
-                img_path = str(row.iloc["Image"] or "")
+                img_path = str(row.iloc["Image"] or "")  # [10]
                 img = show_thumbnail(img_path, size=(500, 500))
                 if img:
                     st.image(img, caption=img_path, use_container_width=True)
@@ -365,14 +372,13 @@ with content:
 
 st.divider()
 
-# ---------- Actions ----------
 # Add
 if actions["add"]:
     with st.expander("Add Product", expanded=True):
-        payload = add_or_edit_dialog(mode="add", row=None, scope="add")
-        cols = st.columns([0.15, 0.85], gap="small")
-        with cols:
-            if st.button("Save New", key=k("add","save")):
+        payload = add_or_edit_dialog(mode="add", row=None, key_prefix="add_dialog_1")
+        col_left, col_right = st.columns([0.15, 0.85], gap="small")  # [9]
+        with col_left:
+            if st.button("Save New", key=k("add_dialog_1","save")):
                 if not payload["dno"]:
                     st.error("D.NO. is required.")
                 elif dno_exists(payload["dno"]):
@@ -395,10 +401,10 @@ if actions["edit"]:
         else:
             with st.expander(f"Edit Product #{pid}", expanded=True):
                 rowdict = row.iloc.to_dict()
-                payload = add_or_edit_dialog(mode="edit", row=rowdict, scope=f"edit_{pid}")
-                cols = st.columns([0.15, 0.85], gap="small")
-                with cols:
-                    if st.button("Save Changes", key=k("edit", f"save_{pid}")):
+                payload = add_or_edit_dialog(mode="edit", row=rowdict, key_prefix=f"edit_dialog_{pid}")
+                col_left, col_right = st.columns([0.15, 0.85], gap="small")  # [9]
+                with col_left:
+                    if st.button("Save Changes", key=k(f"edit_dialog_{pid}","save")):
                         if not payload["dno"]:
                             st.error("D.NO. is required.")
                         elif dno_exists(payload["dno"], exclude_id=pid):
@@ -418,10 +424,7 @@ if actions["delete"]:
 
 # Export MATCHING CSV
 if actions["exp_match"]:
-    if selected_ids:
-        sub = df_full[df_full["ID"].isin(selected_ids)]
-    else:
-        sub = df_full
+    sub = df_full[df_full["ID"].isin(selected_ids)] if selected_ids else df_full
     out = io.StringIO()
     writer = csv.writer(out)
     writer.writerow(["D.NO.", "Color", "PCS"])
@@ -499,15 +502,15 @@ if actions["imp_csv"]:
                 cur = conn.cursor()
                 imported = 0
                 for row in reader:
-                    if len(row) != 12:
-                        continue
                     try:
+                        if len(row) != 12:
+                            continue
                         pid = int(row) if row.strip().isdigit() else None
-                        pcs = int(row[19]) if row[19].strip().isdigit() else 0
-                        delv = int(row[20]) if row[20].strip().isdigit() else 0
-                        rate = float(row[27]) if row[27].strip() else 0.0
-                        total = float(row[28]) if row[28].strip() else 0.0
-                        values = (pid, row[21], row[22], row[23], row[24], pcs, delv, row[25], row[26], rate, total, row[29])
+                        pcs = int(row[24]) if row[24].strip().isdigit() else 0
+                        delv = int(row[25]) if row[25].strip().isdigit() else 0
+                        rate = float(row[32]) if row[32].strip() else 0.0
+                        total = float(row[33]) if row[33].strip() else 0.0
+                        values = (pid, row[26], row[27], row[28], row[29], pcs, delv, row[30], row[31], rate, total, row[34])
                         cur.execute("""
                             INSERT OR REPLACE INTO products(
                                 id, company, dno, matching, diamond, pcs, delivery_pcs, assignee, type, rate, total, image
